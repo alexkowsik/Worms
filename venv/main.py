@@ -16,11 +16,11 @@ def getCurve(w, x, r1, r2):
     return fx * 3 + 350   # willkürliche Skalierung (Ausprobieren)
 
 
-def getWindVectorField(curve):
-    r1 = [random.uniform(0, 2 * pi) for i in range(len(W))]
-    r2 = [random.uniform(-1, 1) for j in range(len(W))]
-    r3 = [random.uniform(0, 2 * pi) for i in range(len(W))]
-    r4 = [random.uniform(-1, 1) for j in range(len(W))]
+def getWindVectorField(w, curve):
+    r1 = [random.uniform(0, 2 * pi) for i in range(len(w))]
+    r2 = [random.uniform(-1, 1) for j in range(len(w))]
+    r3 = [random.uniform(0, 2 * pi) for i in range(len(w))]
+    r4 = [random.uniform(-1, 1) for j in range(len(w))]
     windvector = np.zeros([HEIGHT, WIDTH])
 
     for i in range(WIDTH):
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     random2 = [random.uniform(-1, 1) for j in range(len(W))]
 
     curve = [getCurve(W, i, random1, random2) for i in range(WIDTH)]
-    windvectorfield = getWindVectorField(curve)
+    windvectorfield = getWindVectorField(W, curve)
 
     print(windvectorfield)
 
@@ -83,3 +83,4 @@ if __name__ == '__main__':
     display.show()
 
     sys.exit(app.exec_())
+
