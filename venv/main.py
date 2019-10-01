@@ -24,11 +24,11 @@ def getWindVectorField(w, curve):
     windvector = np.zeros([HEIGHT, WIDTH])
 
     for i in range(WIDTH):
-        tmp = getCurve(W, i, r1, r2)
+        tmp = getCurve(w, i, r1, r2)
         for j in range(HEIGHT):
             if j > curve[i]:
                 break
-            windvector[j][i] = tmp + getCurve(W, j, r3, r4)
+            windvector[j][i] = tmp + getCurve(w, j, r3, r4)
 
     return windvector
 
