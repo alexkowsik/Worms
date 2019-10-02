@@ -16,6 +16,7 @@ def getCurve(w, x, r1, r2):
     return fx * 3 + 350   # willkürliche Skalierung (Ausprobieren)
 
 
+# TODO: die Funktion ist wahrscheinlich doch Blödsinn
 def getWindVectorField(w, curve):
     r1 = [random.uniform(0, 2 * pi) for i in range(len(w))]
     r2 = [random.uniform(-1, 1) for j in range(len(w))]
@@ -28,7 +29,7 @@ def getWindVectorField(w, curve):
         for j in range(HEIGHT):
             if j > curve[i]:
                 break
-            windvector[j][i] = tmp + getCurve(w, j, r3, r4)
+            windvector[j][i] = (tmp + getCurve(w, j, r3, r4) - 700) / 6
 
     return windvector
 
@@ -48,9 +49,7 @@ if __name__ == '__main__':
     random2 = [random.uniform(-1, 1) for j in range(len(W))]
 
     curve = [getCurve(W, i, random1, random2) for i in range(WIDTH)]
-    windvectorfield = getWindVectorField(W, curve)
-
-    print(windvectorfield)
+    # windvectorfield = getWindVectorField(W, curve)  # alpha(x, y), also der Winkel
 
     m = np.zeros([HEIGHT, WIDTH], dtype=np.bool)
 
@@ -78,6 +77,26 @@ if __name__ == '__main__':
 
     # zeichnet Krater an die Funktionsstelle von 500 mit Radius 50
     mappainter.drawEllipse(QPoint(500, curve[500]), 50, 50)
+
+    # Ebene mit den Figuren
+    chars = np.zeros([WIDTH, HEIGHT, 4])
+    chars[:, :, 3] = 0  # macht Ebene transparent
+    char_img = QImage(chars, WIDTH, HEIGHT, QImage.Format_RGBA8888)
+    charpainter = QPainter(char_img)
+
+    # erster Spieler
+    charpainter.setPen(Qt.green)
+    charpainter.setBrush(Qt.green)
+    charpainter.drawEllipse(QPoint(200, curve[200]), 15, 15)
+
+    # zweiter Spieler
+    charpainter.setPen(Qt.blue)
+    charpainter.setBrush(Qt.blue)
+    charpainter.drawEllipse(QPoint(1000, curve[1000]), 15, 15)
+
+    # zeichne Ebene mit Spielern auf die map
+    mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+    mappainter.drawPixmap(0, 0, QPixmap.fromImage(char_img))
 
     display.setPixmap(QPixmap.fromImage(world_img))
     display.show()
