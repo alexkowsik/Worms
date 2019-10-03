@@ -32,7 +32,8 @@ class Worms:
         self.mappainter.setRenderHint(QPainter.Antialiasing)
 
         self.charsImg = self.create_chars_image()
-        self.canonImg = self.create_canon_image()
+        self.canonImg1 = self.create_canon_image(1)
+        self.canonImg2 = self.create_canon_image(2)
 
         self.make_crater(500, 50)  # demo: x = 500, radius = 50
         self.draw_charsImg()
@@ -105,13 +106,14 @@ class Worms:
         self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
         self.mappainter.drawPixmap(0, 0, QPixmap.fromImage(self.charsImg))
 
-    def create_canon_image(self):
+    def create_canon_image(self, player):
         canon = np.zeros([7, 60, 4])
         canon[:, :, 3] = 0
         img = QImage(canon, 7, 60, QImage.Format_RGBA8888)
         canonpainter = QPainter(img)
-        canonpainter.setPen(QColor(qRgb(0, 52, 135)))
-        canonpainter.setBrush(QColor(qRgb(0, 52, 135)))
+        color = QColor(qRgb(0, 135, 0)) if player == 1 else QColor(qRgb(0, 0, 135))
+        canonpainter.setPen(color)
+        canonpainter.setBrush(color)
         canonpainter.drawRect(0, 0, 7, 30)
         canonpainter.drawRect(7, 30, 7, 30)
         return img
@@ -126,7 +128,7 @@ class Worms:
             else:
                 return 180
         elif y == py:
-            if x <= py:
+            if x <= px:
                 return 90
             else:
                 return -90
@@ -157,7 +159,12 @@ class Worms:
         painter.translate(c)
         angle = self.get_angle(x, y)
         painter.rotate(-angle + 180)
-        painter.drawPixmap(QPoint(-4, 0), QPixmap.fromImage(self.canonImg))
+
+        if self.currentPlayer == 1:
+            painter.drawPixmap(QPoint(-4, 0), QPixmap.fromImage(self.canonImg1))
+        else:
+            painter.drawPixmap(QPoint(-4, 0), QPixmap.fromImage(self.canonImg2))
+
         painter.rotate(-180 + angle)
         painter.translate(-c)
         painter.end()
