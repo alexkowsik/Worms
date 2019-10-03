@@ -93,12 +93,12 @@ class Worms:
         # erster Spieler
         charpainter.setPen(Qt.green)
         charpainter.setBrush(Qt.green)
-        charpainter.drawEllipse(QPoint(200, self.curve[200]), 15, 15)
+        charpainter.drawEllipse(QPoint(self.player1Pos.x(), self.player1Pos.y()), 15, 15)
 
         # zweiter Spieler
         charpainter.setPen(Qt.blue)
         charpainter.setBrush(Qt.blue)
-        charpainter.drawEllipse(QPoint(1000, self.curve[1000]), 15, 15)
+        charpainter.drawEllipse(QPoint(self.player2Pos.x(), self.player2Pos.y()), 15, 15)
 
         return img
 
@@ -152,6 +152,11 @@ class Worms:
         painter.setPen(QColor(qRgb(0, 52, 135)))
         painter.setBrush(QColor(qRgb(0, 52, 135)))
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+
+        if self.currentPlayer == 1:
+            painter.drawPixmap(self.player2Pos.x() - 4, self.player2Pos.y() - 30, QPixmap.fromImage(self.canonImg2))
+        else:
+            painter.drawPixmap(self.player1Pos.x() - 4, self.player1Pos.y() - 30, QPixmap.fromImage(self.canonImg1))
 
         c = QPointF(self.player1Pos.x(), self.player1Pos.y()) if self.currentPlayer == 1 else \
             QPointF(self.player2Pos.x(), self.player2Pos.y())
