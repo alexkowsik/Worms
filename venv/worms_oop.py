@@ -29,6 +29,7 @@ class Worms:
 
         self.worldImg = self.create_world_image()
         self.mappainter = QPainter(self.worldImg)
+        self.mappainter.setRenderHint(QPainter.Antialiasing)
 
         self.charsImg = self.create_chars_image()
         self.canonImg = self.create_canon_image()
@@ -86,6 +87,7 @@ class Worms:
         chars[:, :, 3] = 0  # macht Ebene transparent
         img = QImage(chars, WIDTH, HEIGHT, QImage.Format_RGBA8888)
         charpainter = QPainter(img)
+        charpainter.setRenderHint(QPainter.Antialiasing)
 
         # erster Spieler
         charpainter.setPen(Qt.green)
@@ -142,6 +144,8 @@ class Worms:
     def redraw(self, x, y):
         img = self.worldImg.copy()
         painter = QPainter(img)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
 
         painter.setPen(QColor(qRgb(0, 52, 135)))
         painter.setBrush(QColor(qRgb(0, 52, 135)))
