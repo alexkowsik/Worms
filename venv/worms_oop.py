@@ -23,6 +23,9 @@ class Worms:
         self.W = np.linspace(0.001, 0.05, 20)  # W war vorgegeben
         self.curve = self.create_curve()
 
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timer_tick)
+
         self.player1Pos = QPoint(200, self.curve[200])
         self.player2Pos = QPoint(1000, self.curve[1000])
         self.currentPlayer = 1
@@ -34,6 +37,9 @@ class Worms:
         self.charsImg = self.create_chars_image()
         self.canonImg1 = self.create_canon_image(1)
         self.canonImg2 = self.create_canon_image(2)
+
+        self.ball_img = self.create_ball_image()
+        self.x, self.y = 0, 0
 
         self.make_crater(500, 50)  # demo: x = 500, radius = 50
         self.draw_chars_img()
@@ -153,8 +159,6 @@ class Worms:
         painter = QPainter(img)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
-        painter.setPen(QColor(qRgb(0, 52, 135)))
-        painter.setBrush(QColor(qRgb(0, 52, 135)))
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
         # zeichnet das Kanonenrohr des jeweils anderen Spielers
@@ -198,11 +202,42 @@ class Worms:
                 windvector[j][i] = (tmp + self.get_curve_fx(j, r3, r4) - 700) / 6
         return windvector
 
-    def mouse_press_event(self):
+    def create_ball_image(self):
+        ball = np.zeros([40, 40, 4])
+        ball[:, :, 3] = 0
+        img = QImage(ball, 40, 40, QImage.Format_RGBA8888)
+        ballpainter = QPainter(img)
+        ballpainter.setPen(Qt.red)
+        ballpainter.setBrush(Qt.red)
+        ballpainter.drawEllipse(QPoint(20, 20), 15, 15)
+        return img
+
+    def mouse_press_event(self, event):
+        self.display.setMouseTracking(False)
+        self.timer.start(1)
         self.currentPlayer = 2 if self.currentPlayer == 1 else 1
 
     def mouse_move_event(self, event):
         self.redraw(event.pos().x(), event.pos().y())
+
+    def timer_tick(self):
+        img = self.worldImg.copy()
+        painter = QPainter(img)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+
+        painter.drawPixmap(self.player2Pos.x() - 4, self.player2Pos.y() - 30, QPixmap.fromImage(self.canonImg2))
+        painter.drawPixmap(self.player1Pos.x() - 4, self.player1Pos.y() - 30, QPixmap.fromImage(self.canonImg1))
+
+        painter.drawPixmap(self.x, self.y, QPixmap.fromImage(self.ball_img))
+        self.x += 1
+        painter.end()
+
+        self.display.setPixmap(QPixmap.fromImage(img))
+        self.display.show()
+
+        if self.x + 40 >= WIDTH:
+            self.timer.stop()
 
 
 app = QApplication(sys.argv)
