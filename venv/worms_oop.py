@@ -36,7 +36,7 @@ class Worms:
         self.canonImg2 = self.create_canon_image(2)
 
         self.make_crater(500, 50)  # demo: x = 500, radius = 50
-        self.draw_charsImg()
+        self.draw_chars_img()
 
         # self.windVectors = self.get_wind_vector_field()
         self.redraw(self.player1Pos.x(), 0)
@@ -46,6 +46,7 @@ class Worms:
         random2 = [random.uniform(-1, 1) for _ in range(len(self.W))]
         return [self.get_curve_fx(i, random1, random2) for i in range(WIDTH)]
 
+    # liefert für x den Wert f(x) der Kurve für die Landschaft
     def get_curve_fx(self, x, r1, r2):
         fx = 0
         for i in range(len(self.W)):
@@ -60,9 +61,10 @@ class Worms:
         map_dist = map_dist / np.max(map_dist) * 4  # willkürlicher Faktor (alternativ 0.6 draufaddieren)
         world = plt.cm.copper_r(map_dist)
         world[:, :, 3] = land
-        world = np.asarray(world * 255, np.uint8)
+        world = np.asarray(world * 255, np.uint8)  # Werte der colormap zwischen 0 und 1, also mit 255 skalieren
         return QImage(world, WIDTH, HEIGHT, QImage.Format_RGBA8888)
 
+    # setzt jeden Pixel auf True wenn er dem Land angehört und sonst auf False
     def create_bool_landscape(self):
         land = np.zeros([HEIGHT, WIDTH], dtype=np.bool)
 
@@ -76,6 +78,7 @@ class Worms:
         return land
 
     def make_crater(self, x, radius):
+        # setzt den painter auf den "Radiermodus"
         self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
         self.mappainter.setPen(Qt.white)
         self.mappainter.setBrush(Qt.white)
@@ -84,7 +87,7 @@ class Worms:
         self.mappainter.drawEllipse(QPoint(x, self.curve[x]), radius, radius)
 
     def create_chars_image(self):
-        chars = np.zeros([WIDTH, HEIGHT, 4])
+        chars = np.zeros([WIDTH, HEIGHT, 4])  # TODO: char image kleiner machen und in zwei einzelne aufsplitten
         chars[:, :, 3] = 0  # macht Ebene transparent
         img = QImage(chars, WIDTH, HEIGHT, QImage.Format_RGBA8888)
         charpainter = QPainter(img)
@@ -102,12 +105,13 @@ class Worms:
 
         return img
 
-    def draw_charsImg(self):
+    def draw_chars_img(self):
+        # setzt den painter af einen Modus, in welchem er Pixmaps übereinander zeichnen kann
         self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
         self.mappainter.drawPixmap(0, 0, QPixmap.fromImage(self.charsImg))
 
     def create_canon_image(self, player):
-        canon = np.zeros([7, 60, 4])
+        canon = np.zeros([7, 60, 4])  # das canon image ist nur 7px*60px groß
         canon[:, :, 3] = 0
         img = QImage(canon, 7, 60, QImage.Format_RGBA8888)
         canonpainter = QPainter(img)
@@ -118,6 +122,7 @@ class Worms:
         canonpainter.drawRect(7, 30, 7, 30)
         return img
 
+    # x und y in der Regel Mauskoordinaten; berechnet Winkel zur Mitte des Spielers
     def get_angle(self, x, y):
         px = self.player1Pos.x() if self.currentPlayer == 1 else self.player2Pos.x()
         py = self.player1Pos.y() if self.currentPlayer == 1 else self.player2Pos.y()
@@ -148,20 +153,19 @@ class Worms:
         painter = QPainter(img)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
-
         painter.setPen(QColor(qRgb(0, 52, 135)))
         painter.setBrush(QColor(qRgb(0, 52, 135)))
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
+        # zeichnet das Kanonenrohr des jeweils anderen Spielers
         if self.currentPlayer == 1:
             painter.drawPixmap(self.player2Pos.x() - 4, self.player2Pos.y() - 30, QPixmap.fromImage(self.canonImg2))
         else:
             painter.drawPixmap(self.player1Pos.x() - 4, self.player1Pos.y() - 30, QPixmap.fromImage(self.canonImg1))
 
-        c = QPointF(self.player1Pos.x(), self.player1Pos.y()) if self.currentPlayer == 1 else \
-            QPointF(self.player2Pos.x(), self.player2Pos.y())
+        new_corner = self.player1Pos if self.currentPlayer == 1 else self.player2Pos
+        painter.translate(new_corner)
 
-        painter.translate(c)
         angle = self.get_angle(x, y)
         painter.rotate(-angle + 180)
 
@@ -170,14 +174,15 @@ class Worms:
         else:
             painter.drawPixmap(QPoint(-4, 0), QPixmap.fromImage(self.canonImg2))
 
+        # setze alles wieder zurück, damit beim nächsten Aufruf das Kanonenrohr des anderen richtig gezeichnet wird
         painter.rotate(-180 + angle)
-        painter.translate(-c)
+        painter.translate(-new_corner)
         painter.end()
 
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
-    # TODO: die Funktion ist wahrscheinlich doch Blödsinn
+    # TODO: nicht für alle Pixel, sondern nur für eine Korrdinate berechnen, die übergeben wird
     def get_wind_vector_field(self):
         r1 = [random.uniform(0, 2 * pi) for i in range(len(self.W))]
         r2 = [random.uniform(-1, 1) for j in range(len(self.W))]
@@ -193,12 +198,11 @@ class Worms:
                 windvector[j][i] = (tmp + self.get_curve_fx(j, r3, r4) - 700) / 6
         return windvector
 
-    def mouse_press_event(self, event):
+    def mouse_press_event(self):
         self.currentPlayer = 2 if self.currentPlayer == 1 else 1
-        print('press', event.pos())
 
-    def mouse_move_event(self, QMouseEvent):
-        self.redraw(QMouseEvent.pos().x(), QMouseEvent.pos().y())
+    def mouse_move_event(self, event):
+        self.redraw(event.pos().x(), event.pos().y())
 
 
 app = QApplication(sys.argv)
