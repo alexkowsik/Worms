@@ -31,8 +31,8 @@ class Worms:
         self.player2Pos = QPoint(1000, self.curve[1000])
         self.currentPlayer = 1
 
-        self.worldImg = self.create_world_image()
-        self.worldImgFrozen = self.worldImg.copy()
+        self.worldImg = self.create_world_image()  # das Bild, das immer erhalten und bemalt wird
+        self.worldImgFrozen = self.worldImg.copy()  # s. unten
         self.mappainter = QPainter(self.worldImg)
         self.mappainter.setRenderHint(QPainter.Antialiasing)
 
@@ -209,19 +209,19 @@ class Worms:
         painter.translate(-new_corner)
         painter.end()
 
-        self.worldImgFrozen = img
+        self.worldImgFrozen = img  # speichere die Kanonenpositionen für den Fall dass eine Animation folgt
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
     def animation(self):
-        img = self.worldImgFrozen.copy()
+        img = self.worldImgFrozen.copy()  # die frozen Kopie, damit die Kanonenpositionen erhalten bleiben
         painter = QPainter(img)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
         painter.translate(self.bulletPos)
         # willkürlicher Winkel, muss später entsprechend F=mg berechent werden
-        angle = np.degrees(self.bulletPos.x())
+        angle = 45  # np.degrees(self.bulletPos.x())
         painter.rotate(angle)
 
         painter.drawPixmap(QPoint(0, 0), QPixmap.fromImage(self.bulletImg))
@@ -239,6 +239,7 @@ class Worms:
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
             self.bulletPos = self.player1Pos
+            self.redraw_canons(0, 0)
 
     def mouse_press_event(self, event):
         self.mousePos = event.pos()
