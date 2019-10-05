@@ -32,6 +32,7 @@ class Worms:
         self.currentPlayer = 1
 
         self.worldImg = self.create_world_image()
+        self.worldImgFrozen = self.worldImg.copy()
         self.mappainter = QPainter(self.worldImg)
         self.mappainter.setRenderHint(QPainter.Antialiasing)
 
@@ -40,15 +41,11 @@ class Worms:
         self.canonImg2 = self.create_canon_image(2)
 
         self.ball_img = self.create_ball_image()
-        self.x, self.y = 0, 0
+        self.x, self.y = self.player1Pos.x(), self.player1Pos.y()
 
         self.make_crater(500, 50)  # demo: x = 500, radius = 50
         self.draw_chars_img()
-
-        # self.windVectors = self.get_wind_vector_field()
-        img = self.redraw_canons(self.player1Pos.x(), 0)
-        self.display.setPixmap(QPixmap.fromImage(img))
-        self.display.show()
+        self.redraw_canons(self.player1Pos.x(), self.player1Pos.y())
 
     # TODO: nicht für alle Pixel, sondern nur für eine Korrdinate berechnen, die übergeben wird
     def get_wind_vector_field(self):
@@ -202,7 +199,9 @@ class Worms:
         painter.translate(-new_corner)
         painter.end()
 
-        return img
+        self.worldImgFrozen = img
+        self.display.setPixmap(QPixmap.fromImage(img))
+        self.display.show()
 
     def create_ball_image(self):
         ball = np.zeros([40, 40, 4])
@@ -220,12 +219,10 @@ class Worms:
         self.timer.start(1)
 
     def mouse_move_event(self, event):
-        img = self.redraw_canons(event.pos().x(), event.pos().y())
-        self.display.setPixmap(QPixmap.fromImage(img))
-        self.display.show()
+        self.redraw_canons(event.pos().x(), event.pos().y())
 
     def timer_tick(self):
-        img = self.redraw_canons(self.mousePos.x(), self.mousePos.y())
+        img = self.worldImgFrozen.copy()
         painter = QPainter(img)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
@@ -241,7 +238,7 @@ class Worms:
             self.timer.stop()
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
-            self.x = 0
+            self.x = self.player1Pos.x()
 
 
 app = QApplication(sys.argv)
