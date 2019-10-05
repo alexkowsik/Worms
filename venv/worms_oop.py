@@ -221,7 +221,8 @@ class Worms:
 
         painter.translate(self.bulletPos)
         # willkürlicher Winkel, muss später entsprechend F=mg berechent werden
-        angle = 45  # np.degrees(self.bulletPos.x())
+        # np.degrees(self.bulletPos.x()) ist ganz witzig
+        angle = 45 if self.currentPlayer == 1 else -45
         painter.rotate(angle)
 
         painter.drawPixmap(QPoint(0, 0), QPixmap.fromImage(self.bulletImg))
@@ -230,15 +231,19 @@ class Worms:
         painter.rotate(-angle)
         painter.end()
 
-        self.bulletPos = QPoint(self.bulletPos.x() + 1, self.bulletPos.y())
+        if self.currentPlayer == 1:
+            self.bulletPos = QPoint(self.bulletPos.x() + 1, self.bulletPos.y())
+        else:
+            self.bulletPos = QPoint(self.bulletPos.x() - 1, self.bulletPos.y())
+
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
-        if self.bulletPos.x() + 40 >= WIDTH:
+        if self.bulletPos.x() >= WIDTH or self.bulletPos.x() <= 0:
             self.timer.stop()
+            self.bulletPos = self.player2Pos if self.currentPlayer == 1 else self.player1Pos
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
-            self.bulletPos = self.player1Pos
             self.redraw_canons(0, 0)
 
     def mouse_press_event(self, event):
