@@ -219,10 +219,18 @@ class Worms:
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
-        painter.drawPixmap(self.bulletPos.x(), self.bulletPos.y(), QPixmap.fromImage(self.bulletImg))
-        self.bulletPos = QPoint(self.bulletPos.x() + 1, self.bulletPos.y())
+        painter.translate(self.bulletPos)
+        # willkürlicher Winkel, muss später entsprechend F=mg berechent werden
+        angle = np.degrees(self.bulletPos.x())
+        painter.rotate(angle)
+
+        painter.drawPixmap(QPoint(0, 0), QPixmap.fromImage(self.bulletImg))
+
+        painter.translate(-self.bulletPos)
+        painter.rotate(-angle)
         painter.end()
 
+        self.bulletPos = QPoint(self.bulletPos.x() + 1, self.bulletPos.y())
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
