@@ -41,7 +41,7 @@ class Worms:
         self.canonImg2 = self.create_canon_image(2)
 
         self.bulletImg = self.create_bullet_image()
-        self.x, self.y = self.player1Pos.x(), self.player1Pos.y()
+        self.bulletPos = self.player1Pos
 
         self.make_crater(500, 50)  # demo: x = 500, radius = 50
         self.draw_chars_img()
@@ -219,20 +219,18 @@ class Worms:
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
-
-
-        painter.drawPixmap(self.x, self.y, QPixmap.fromImage(self.bulletImg))
-        self.x += 1
+        painter.drawPixmap(self.bulletPos.x(), self.bulletPos.y(), QPixmap.fromImage(self.bulletImg))
+        self.bulletPos = QPoint(self.bulletPos.x() + 1, self.bulletPos.y())
         painter.end()
 
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
-        if self.x + 40 >= WIDTH:
+        if self.bulletPos.x() + 40 >= WIDTH:
             self.timer.stop()
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
-            self.x = self.player1Pos.x()
+            self.bulletPos = self.player1Pos
 
     def mouse_press_event(self, event):
         self.mousePos = event.pos()
