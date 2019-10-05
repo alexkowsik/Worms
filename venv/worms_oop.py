@@ -24,7 +24,7 @@ class Worms:
         self.curve = self.create_curve()
 
         self.timer = QTimer()
-        self.timer.timeout.connect(self.timer_tick)
+        self.timer.timeout.connect(self.animation)
 
         self.mousePos = None
         self.player1Pos = QPoint(200, self.curve[200])
@@ -40,7 +40,7 @@ class Worms:
         self.canonImg1 = self.create_canon_image(1)
         self.canonImg2 = self.create_canon_image(2)
 
-        self.ball_img = self.create_ball_image()
+        self.bulletImg = self.create_bullet_image()
         self.x, self.y = self.player1Pos.x(), self.player1Pos.y()
 
         self.make_crater(500, 50)  # demo: x = 500, radius = 50
@@ -49,10 +49,10 @@ class Worms:
 
     # TODO: nicht für alle Pixel, sondern nur für eine Korrdinate berechnen, die übergeben wird
     def get_wind_vector_field(self):
-        r1 = [random.uniform(0, 2 * pi) for i in range(len(self.W))]
-        r2 = [random.uniform(-1, 1) for j in range(len(self.W))]
-        r3 = [random.uniform(0, 2 * pi) for i in range(len(self.W))]
-        r4 = [random.uniform(-1, 1) for j in range(len(self.W))]
+        r1 = [random.uniform(0, 2 * pi) for _ in range(len(self.W))]
+        r2 = [random.uniform(-1, 1) for _ in range(len(self.W))]
+        r3 = [random.uniform(0, 2 * pi) for _ in range(len(self.W))]
+        r4 = [random.uniform(-1, 1) for _ in range(len(self.W))]
         windvector = np.zeros([HEIGHT, WIDTH])
 
         for i in range(WIDTH):
@@ -144,6 +144,16 @@ class Worms:
         canonpainter.drawRect(7, 30, 7, 30)
         return img
 
+    def create_bullet_image(self):
+        ball = np.zeros([7, 30, 4])
+        ball[:, :, 3] = 0
+        img = QImage(ball, 7, 30, QImage.Format_RGBA8888)
+        ballpainter = QPainter(img)
+        ballpainter.setPen(Qt.red)
+        ballpainter.setBrush(Qt.red)
+        ballpainter.drawRect(0, 0, 7, 30)
+        return img
+
     # x und y in der Regel Mauskoordinaten; berechnet Winkel zur Mitte des Spielers
     def get_angle(self, x, y):
         px = self.player1Pos.x() if self.currentPlayer == 1 else self.player2Pos.x()
@@ -203,31 +213,15 @@ class Worms:
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
-    def create_ball_image(self):
-        ball = np.zeros([40, 40, 4])
-        ball[:, :, 3] = 0
-        img = QImage(ball, 40, 40, QImage.Format_RGBA8888)
-        ballpainter = QPainter(img)
-        ballpainter.setPen(Qt.red)
-        ballpainter.setBrush(Qt.red)
-        ballpainter.drawEllipse(QPoint(20, 20), 15, 15)
-        return img
-
-    def mouse_press_event(self, event):
-        self.mousePos = event.pos()
-        self.display.setMouseTracking(False)
-        self.timer.start(1)
-
-    def mouse_move_event(self, event):
-        self.redraw_canons(event.pos().x(), event.pos().y())
-
-    def timer_tick(self):
+    def animation(self):
         img = self.worldImgFrozen.copy()
         painter = QPainter(img)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
-        painter.drawPixmap(self.x, self.y, QPixmap.fromImage(self.ball_img))
+
+
+        painter.drawPixmap(self.x, self.y, QPixmap.fromImage(self.bulletImg))
         self.x += 1
         painter.end()
 
@@ -239,6 +233,14 @@ class Worms:
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
             self.x = self.player1Pos.x()
+
+    def mouse_press_event(self, event):
+        self.mousePos = event.pos()
+        self.display.setMouseTracking(False)
+        self.timer.start(1)
+
+    def mouse_move_event(self, event):
+        self.redraw_canons(event.pos().x(), event.pos().y())
 
 
 app = QApplication(sys.argv)
