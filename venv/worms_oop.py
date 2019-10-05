@@ -5,8 +5,8 @@ from PyQt5.QtCore import *
 import numpy as np
 import random
 from math import pi
-import skfmm
-import matplotlib.pyplot as plt
+# import skfmm
+# import matplotlib.pyplot as plt
 
 
 WIDTH = 1200
@@ -79,9 +79,10 @@ class Worms:
         land = self.create_bool_landscape()
 
         # färbt den Boden entsprechend der Distanz zur Oberfläche
-        map_dist = skfmm.distance(land)
-        map_dist = map_dist / np.max(map_dist) * 4  # willkürlicher Faktor (alternativ 0.6 draufaddieren)
-        world = plt.cm.copper_r(map_dist)
+        #map_dist = skfmm.distance(land)
+        #map_dist = map_dist / np.max(map_dist) * 4  # willkürlicher Faktor (alternativ 0.6 draufaddieren)
+        #world = plt.cm.copper_r(map_dist)
+        world = np.zeros([HEIGHT, WIDTH, 4])
         world[:, :, 3] = land
         world = np.asarray(world * 255, np.uint8)  # Werte der colormap zwischen 0 und 1, also mit 255 skalieren
         return QImage(world, WIDTH, HEIGHT, QImage.Format_RGBA8888)
