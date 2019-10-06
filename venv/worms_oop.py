@@ -148,6 +148,8 @@ class Worms:
 
         # zeichnet Krater an die Funktionsstelle von 500 mit Radius 50
         self.mappainter.drawEllipse(QPoint(x, self.curve[x]), radius, radius)
+        self.draw_chars_img()
+
         for width in range(-radius - 1, radius + 1):
             height = np.sqrt(np.power(radius, 2) - np.power(width, 2))
             self.curve[x + width] = self.curve[x + width] + height
