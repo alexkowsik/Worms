@@ -12,7 +12,7 @@ import time
 
 
 WIDTH = 1355
-HEIGHT = np.array([WIDTH * 9 / 16], np.int)[0]
+HEIGHT = int(np.floor(WIDTH * 9 / 16))
 # because of how the simulation and the presentation of the simulation works, the resolution determines the
 # power of the shot. this code fits the resolutions to the magnitude and creates a polynial function
 # that finds the optimal magnitude
@@ -38,8 +38,8 @@ class Worms:
         self.timer.timeout.connect(self.animation)
 
         self.mousePos = None
-        self.player1Pos = QPoint(200, self.curve[200])
-        self.player2Pos = QPoint(250, self.curve[250])
+        self.player1Pos = QPoint(20 * WIDTH / 100, self.curve[int(np.floor(20 * WIDTH / 100))])
+        self.player2Pos = QPoint(80 * WIDTH / 100, self.curve[int(np.floor(80 * WIDTH / 100))])
         self.currentPlayer = 1
 
         self.worldImg = self.create_world_image()  # das Bild, das immer erhalten und bemalt wird
@@ -55,7 +55,7 @@ class Worms:
         self.bulletPos = self.player1Pos + QPoint(0, 0)
 
         # self.make_crater(500, 50)  # demo: x = 500, radius = 50
-        self.draw_chars_img()
+        self.draw_chars_img(self.charsImg)
         self.redraw_canons(self.player1Pos.x(), self.player1Pos.y())
 
         # physics variables
@@ -163,19 +163,39 @@ class Worms:
         self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
         self.mappainter.setPen(Qt.white)
         self.mappainter.setBrush(Qt.white)
-
+        self.old_crater_yPos = self.curve[x]
+        self.old_player1Pos = self.player1Pos
+        self.old_player2Pos = self.player2Pos
         # zeichnet Krater an die Funktionsstelle von 500 mit Radius 50
         self.mappainter.drawEllipse(QPoint(x, self.curve[x]), radius, radius)
-        self.draw_chars_img()
+
 
         for width in range(-radius - 1, radius + 1):
             height = np.sqrt(np.power(radius, 2) - np.power(width, 2))
             self.curve[x + width] = self.curve[x + width] + height
 
+        if ((np.sqrt(np.power(self.old_player1Pos.x() - x, 2)
+                     + np.power(self.old_player1Pos.y() - self.old_crater_yPos, 2)) < radius)):
+            self.player1Pos = QPoint(self.old_player1Pos.x(), -20 + self.curve[self.old_player1Pos.x()])
+            self.mappainter.drawEllipse(QPoint(self.old_player1Pos.x(), self.old_player1Pos.y()), 16, 16)
+
+        if (np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
+                    + np.power(self.old_player2Pos.y() - self.old_crater_yPos, 2)) < radius):
+            self.player2Pos = QPoint(self.old_player2Pos.x(), -20 + self.curve[self.old_player2Pos.x()])
+            self.mappainter.drawEllipse(QPoint(self.old_player2Pos.x(), self.old_player2Pos.y()), 16, 16)
+
+        self.charsImg = self.create_chars_image()
+        self.draw_chars_img(self.charsImg)
+
     def create_chars_image(self):
         chars = np.zeros([WIDTH, HEIGHT, 4])  # TODO: char image kleiner machen und in zwei einzelne aufsplitten
         chars[:, :, 3] = 0  # macht Ebene transparent
         img = QImage(chars, WIDTH, HEIGHT, QImage.Format_RGBA8888)
+
+
+        return img
+
+    def draw_chars_img(self, img):
         charpainter = QPainter(img)
         charpainter.setRenderHint(QPainter.Antialiasing)
 
@@ -188,13 +208,10 @@ class Worms:
         charpainter.setPen(Qt.blue)
         charpainter.setBrush(Qt.blue)
         charpainter.drawEllipse(QPoint(self.player2Pos.x(), self.player2Pos.y()), 15, 15)
-
-        return img
-
-    def draw_chars_img(self):
         # setzt den painter af einen Modus, in welchem er Pixmaps übereinander zeichnen kann
         self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
         self.mappainter.drawPixmap(0, 0, QPixmap.fromImage(self.charsImg))
+        print("7")
 
     def create_canon_image(self, player):
         canon = np.zeros([7, 60, 4])  # das canon image ist nur 7px*60px groß
@@ -318,7 +335,6 @@ class Worms:
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
-        # if bullet hits terrain
 
 
         # if bullet goes out of bounds
@@ -331,6 +347,7 @@ class Worms:
             self.display.setMouseTracking(True)
             self.redraw_canons(0, 0)
 
+        # if bullet hits terrain
         if self.bulletPos.y() >= self.curve[self.bulletPos.x()]:
             self.make_crater(self.bulletPos.x(), 50)
             self.timer.stop()
@@ -339,6 +356,39 @@ class Worms:
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
             self.redraw_canons(0, 0)
+
+    def move_tank_left(self):
+        print("2")
+        self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
+        if self.currentPlayer == 1:
+            self.mappainter.drawEllipse(QPoint(self.player1Pos.x(), self.player1Pos.y()), 16, 16)
+            self.player1Pos += QPoint(-20, self.curve[self.player1Pos.x() - 20])
+            self.bulletPos = self.player1Pos
+
+        else:
+            self.mappainter.drawEllipse(QPoint(self.player2Pos.x(), self.player2Pos.y()), 16, 16)
+            self.player2Pos += QPoint(-100, self.curve[self.player2Pos.x() - 100])
+            self.bulletPos = self.player2Pos
+        print("3")
+        self.charsImg = self.create_chars_image()
+        self.draw_chars_img(self.charsImg)
+
+    def move_tank_right(self):
+        print("5")
+        self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
+        if self.currentPlayer == 1:
+            self.mappainter.drawEllipse(QPoint(self.player1Pos.x(), self.player1Pos.y()), 16, 16)
+            self.player1Pos += QPoint(20, self.curve[self.player1Pos.x() + 20])
+            self.bulletPos = self.player1Pos
+        else:
+            self.mappainter.drawEllipse(QPoint(self.player2Pos.x(), self.player2Pos.y()), 16, 16)
+            self.player2Pos += QPoint(20, self.curve[self.player2Pos.x() + 20])
+            self.bulletPos = self.player2Pos
+        print("6")
+        self.charsImg = self.create_chars_image()
+        self.draw_chars_img(self.charsImg)
+
+
 
     def mouse_press_event(self, event):
         self.mousePos = event.pos()
@@ -359,6 +409,13 @@ class Worms:
             self.redraw_canons(0, 0)
         if event.key() == Qt.Key_Return:
             self.close()
+        if event.key() == Qt.Key_A:
+            print("1")
+            self.move_tank_left()
+        if event.key() == Qt.Key_D:
+            print("4")
+            self.move_tank_right()
+
 
 
 app = QApplication(sys.argv)
