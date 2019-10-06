@@ -11,8 +11,15 @@ import time
 # import matplotlib.pyplot as plt
 
 
-WIDTH = 1200
-HEIGHT = 600
+WIDTH = 1355
+HEIGHT = np.array([WIDTH * 9 / 16], np.int)[0]
+# because of how the simulation and the presentation of the simulation works, the resolution determines the
+# power of the shot. this code fits the resolutions to the magnitude and creates a polynial function
+# that finds the optimal magnitude
+res = [1920, 1800, 1700, 1600, 1500, 1400, 1300, 1200, 1100, 1000, 900, 800]
+mag = [13.5, 13, 13, 12.2, 17.5, 15.8, 18, 18, 21.8, 18.7, 18.7, 21]
+magnitude_scaling_function = np.polyfit(res, mag, 11)
+magnitude_scaling_function = np.poly1d(magnitude_scaling_function)
 
 
 class Worms:
@@ -32,7 +39,7 @@ class Worms:
 
         self.mousePos = None
         self.player1Pos = QPoint(200, self.curve[200])
-        self.player2Pos = QPoint(1000, self.curve[1000])
+        self.player2Pos = QPoint(250, self.curve[250])
         self.currentPlayer = 1
 
         self.worldImg = self.create_world_image()  # das Bild, das immer erhalten und bemalt wird
@@ -52,10 +59,21 @@ class Worms:
         self.redraw_canons(self.player1Pos.x(), self.player1Pos.y())
 
         # physics variables
-        self.travel_rate = 3  # makes bullet travel every travel-rate-th frame
+        if (WIDTH >= 1600):
+            self.travel_rate = 0  # makes bullet travel every travel-rate-th frame
+        elif (WIDTH >= 1400 and WIDTH < 1600):
+            self.travel_rate = 1
+        elif (WIDTH >= 1200 and WIDTH < 1400):
+            self.travel_rate = 2
+        elif (WIDTH >= 1000 and WIDTH < 1200):
+            self.travel_rate = 3
+        elif (WIDTH >= 800 and WIDTH < 1000):
+            self.travel_rate = 5
+
         # decreasing this makes shots way less precise
         self.frame_count = self.travel_rate
-        self.shot_magnitude = 18.4  # how string the shot will be. the less the travel_rate,
+        self.max_shot_magnitude = magnitude_scaling_function(
+            WIDTH)  # how string the shot will be. the less the travel_rate,
         # the lower this should be
         self.gravity_pull = 9.81
         self.mass = 9 * 10 ** -3  # the mass of default projectile
@@ -82,8 +100,8 @@ class Worms:
         else:
             self.takeoff_angle = np.arctan((py - mouse_click_y) / (mouse_click_x - px))
 
-        self.shot_vector = QPoint(np.floor(self.shot_magnitude * np.cos(self.takeoff_angle))
-                                  , np.floor(self.shot_magnitude * np.sin(self.takeoff_angle)))
+        self.shot_vector = QPoint(np.floor(self.max_shot_magnitude * np.cos(self.takeoff_angle))
+                                  , np.floor(self.max_shot_magnitude * np.sin(self.takeoff_angle)))
         self.pull = 0
         self.travel_counter = 0
 
@@ -113,7 +131,7 @@ class Worms:
         fx = 0
         for i in range(len(self.W)):
             fx += 1 / np.sqrt(self.W[i]) * np.sin(self.W[i] * x + r1[i]) * r2[i]
-        return fx * 3 + 350  # willkürliche Skalierung (Ausprobieren)
+        return fx * 3 + HEIGHT / 1.9  # willkürliche Skalierung (Ausprobieren)
 
     def create_world_image(self):
         self.land = self.create_bool_landscape()
@@ -301,14 +319,7 @@ class Worms:
         self.display.show()
 
         # if bullet hits terrain
-        if self.bulletPos.y() >= self.curve[self.bulletPos.x()]:
-            self.make_crater(self.bulletPos.x(), 50)
-            self.timer.stop()
-            self.bulletPos = self.player2Pos + QPoint(0, 0) \
-                if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 00)
-            self.currentPlayer = 2 if self.currentPlayer == 1 else 1
-            self.display.setMouseTracking(True)
-            self.redraw_canons(0, 0)
+
 
         # if bullet goes out of bounds
         if self.bulletPos.x() >= WIDTH or self.bulletPos.x() <= 0 \
@@ -316,6 +327,15 @@ class Worms:
             self.timer.stop()
             self.bulletPos = self.player2Pos + QPoint(0, 0) \
                 if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 0)
+            self.currentPlayer = 2 if self.currentPlayer == 1 else 1
+            self.display.setMouseTracking(True)
+            self.redraw_canons(0, 0)
+
+        if self.bulletPos.y() >= self.curve[self.bulletPos.x()]:
+            self.make_crater(self.bulletPos.x(), 50)
+            self.timer.stop()
+            self.bulletPos = self.player2Pos + QPoint(0, 0) \
+                if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 00)
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
             self.redraw_canons(0, 0)
