@@ -5,6 +5,8 @@ from PyQt5.QtCore import *
 import numpy as np
 import random
 from math import pi
+import time
+
 # import skfmm
 # import matplotlib.pyplot as plt
 
@@ -15,10 +17,12 @@ HEIGHT = 600
 
 class Worms:
     def __init__(self):
+
         self.display = QLabel()
         self.display.setMouseTracking(True)
         self.display.mouseMoveEvent = self.mouse_move_event
         self.display.mousePressEvent = self.mouse_press_event  # Klick wechselt Spieler
+        self.display.keyPressEvent = self.keyPressEvent
 
         self.W = np.linspace(0.001, 0.05, 20)  # W war vorgegeben
         self.curve = self.create_curve()
@@ -41,11 +45,47 @@ class Worms:
         self.canonImg2 = self.create_canon_image(2)
 
         self.bulletImg = self.create_bullet_image()
-        self.bulletPos = self.player1Pos
+        self.bulletPos = self.player1Pos + QPoint(0, 0)
 
-        self.make_crater(500, 50)  # demo: x = 500, radius = 50
+        # self.make_crater(500, 50)  # demo: x = 500, radius = 50
         self.draw_chars_img()
         self.redraw_canons(self.player1Pos.x(), self.player1Pos.y())
+
+        # physics variables
+        self.travel_rate = 3  # makes bullet travel every travel-rate-th frame
+        # decreasing this makes shots way less precise
+        self.frame_count = self.travel_rate
+        self.shot_magnitude = 18.4  # how string the shot will be. the less the travel_rate,
+        # the lower this should be
+        self.gravity_pull = 9.81
+        self.mass = 9 * 10 ** -3  # the mass of default projectile
+
+    def set_takeoff_angle(self):
+        # this computes the angle of the shot, measured by the line between the player
+        # and the mouseclick and stores this as a Vector in shot_vector.
+        # also resets pull and travel_counter ( see animation function)
+        px = self.player1Pos.x() if self.currentPlayer == 1 else self.player2Pos.x()
+        py = self.player1Pos.y() if self.currentPlayer == 1 else self.player2Pos.y()
+        mouse_click_x = self.mousePos.x()
+        mouse_click_y = self.mousePos.y()
+
+        if mouse_click_x == px:
+            if y <= py:
+                self.takeoff_angle = -np.pi / 2
+            else:
+                self.takeoff_angle = np.pi / 2
+        elif mouse_click_x < px:
+            if mouse_click_y < py:
+                self.takeoff_angle = np.pi - np.arctan((mouse_click_y - py) / (mouse_click_x - px))
+            else:
+                self.takeoff_angle = np.pi - np.arctan((mouse_click_y - py) / (mouse_click_x - px))
+        else:
+            self.takeoff_angle = np.arctan((py - mouse_click_y) / (mouse_click_x - px))
+
+        self.shot_vector = QPoint(np.floor(self.shot_magnitude * np.cos(self.takeoff_angle))
+                                  , np.floor(self.shot_magnitude * np.sin(self.takeoff_angle)))
+        self.pull = 0
+        self.travel_counter = 0
 
     # TODO: nicht für alle Pixel, sondern nur für eine Korrdinate berechnen, die übergeben wird
     def get_wind_vector_field(self):
@@ -76,14 +116,14 @@ class Worms:
         return fx * 3 + 350  # willkürliche Skalierung (Ausprobieren)
 
     def create_world_image(self):
-        land = self.create_bool_landscape()
+        self.land = self.create_bool_landscape()
 
         # färbt den Boden entsprechend der Distanz zur Oberfläche
-        #map_dist = skfmm.distance(land)
-        #map_dist = map_dist / np.max(map_dist) * 4  # willkürlicher Faktor (alternativ 0.6 draufaddieren)
-        #world = plt.cm.copper_r(map_dist)
+        # map_dist = skfmm.distance(land)
+        # map_dist = map_dist / np.max(map_dist) * 4  # willkürlicher Faktor (alternativ 0.6 draufaddieren)
+        # world = plt.cm.copper_r(map_dist)
         world = np.zeros([HEIGHT, WIDTH, 4])
-        world[:, :, 3] = land
+        world[:, :, 3] = self.land
         world = np.asarray(world * 255, np.uint8)  # Werte der colormap zwischen 0 und 1, also mit 255 skalieren
         return QImage(world, WIDTH, HEIGHT, QImage.Format_RGBA8888)
 
@@ -108,6 +148,9 @@ class Worms:
 
         # zeichnet Krater an die Funktionsstelle von 500 mit Radius 50
         self.mappainter.drawEllipse(QPoint(x, self.curve[x]), radius, radius)
+        for width in range(-radius - 1, radius + 1):
+            height = np.sqrt(np.power(radius, 2) - np.power(width, 2))
+            self.curve[x + width] = self.curve[x + width] + height
 
     def create_chars_image(self):
         chars = np.zeros([WIDTH, HEIGHT, 4])  # TODO: char image kleiner machen und in zwei einzelne aufsplitten
@@ -146,13 +189,13 @@ class Worms:
         return img
 
     def create_bullet_image(self):
-        ball = np.zeros([7, 30, 4])
+        ball = np.zeros([8, 8, 4])
         ball[:, :, 3] = 0
-        img = QImage(ball, 7, 30, QImage.Format_RGBA8888)
+        img = QImage(ball, 8, 8, QImage.Format_RGBA8888)
         ballpainter = QPainter(img)
         ballpainter.setPen(Qt.red)
         ballpainter.setBrush(Qt.red)
-        ballpainter.drawRect(0, 0, 7, 30)
+        ballpainter.drawRect(0, 0, 8, 8)
         return img
 
     # x und y in der Regel Mauskoordinaten; berechnet Winkel zur Mitte des Spielers
@@ -224,40 +267,79 @@ class Worms:
         # willkürlicher Winkel, muss später entsprechend F=mg berechent werden
         # np.degrees(self.bulletPos.x()) ist ganz witzig
         angle = 45 if self.currentPlayer == 1 else -45
-        painter.rotate(angle)
 
         painter.drawPixmap(QPoint(0, 0), QPixmap.fromImage(self.bulletImg))
+
+        # pull is the gravitational pull. This variable is added to the y-component of
+        # shot_vector IF the value of this variable exceeds 1. This is because
+        # shot_vector is of data_type QPoint which only holds Integers
+        self.pull += self.gravity_pull * self.mass
+
+        # updated location of bullet
+        shot = QPoint(self.bulletPos.x() + self.shot_vector.x(),
+                      self.bulletPos.y() - self.shot_vector.y())
+
+        if self.pull >= 1:
+            self.shot_vector -= QPoint(0, np.floor(self.pull))  # applying pull. direction changes
+            self.pull = self.pull % 1  # resetting pull
+
+        # only travel when frame_count % travel_rate = 0
+        # pauses pull and bullet travel, but not pull and bullet simulation
+        if self.frame_count == self.travel_rate:
+            self.frame_count = -1
+            self.bulletPos = shot
+
+        self.frame_count += 1
 
         painter.translate(-self.bulletPos)
         painter.rotate(-angle)
         painter.end()
 
-        if self.currentPlayer == 1:
-            self.bulletPos = QPoint(self.bulletPos.x() + 1, self.bulletPos.y())
-        else:
-            self.bulletPos = QPoint(self.bulletPos.x() - 1, self.bulletPos.y())
-
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
-        if self.bulletPos.x() >= WIDTH or self.bulletPos.x() <= 0:
+        # if bullet hits terrain
+        if self.bulletPos.y() >= self.curve[self.bulletPos.x()]:
+            self.make_crater(self.bulletPos.x(), 50)
             self.timer.stop()
-            self.bulletPos = self.player2Pos if self.currentPlayer == 1 else self.player1Pos
+            self.bulletPos = self.player2Pos + QPoint(0, 0) \
+                if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 00)
+            self.currentPlayer = 2 if self.currentPlayer == 1 else 1
+            self.display.setMouseTracking(True)
+            self.redraw_canons(0, 0)
+
+        # if bullet goes out of bounds
+        if self.bulletPos.x() >= WIDTH or self.bulletPos.x() <= 0 \
+                or self.bulletPos.y() >= HEIGHT or self.bulletPos.y() <= -500:
+            self.timer.stop()
+            self.bulletPos = self.player2Pos + QPoint(0, 0) \
+                if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 0)
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
             self.redraw_canons(0, 0)
 
     def mouse_press_event(self, event):
         self.mousePos = event.pos()
+        print(self.mousePos.x(), " ", self.mousePos.y(), " ", self.curve[self.mousePos.x()])
+        self.set_takeoff_angle()
         self.display.setMouseTracking(False)
         self.timer.start(1)
 
     def mouse_move_event(self, event):
         self.redraw_canons(event.pos().x(), event.pos().y())
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Return:
+            self.timer.stop()
+            self.bulletPos = self.player2Pos if self.currentPlayer == 1 else self.player1Pos
+            self.currentPlayer = 2 if self.currentPlayer == 1 else 1
+            self.display.setMouseTracking(True)
+            self.redraw_canons(0, 0)
+        if event.key() == Qt.Key_Return:
+            self.close()
+
 
 app = QApplication(sys.argv)
 # app.setOverrideCursor(Qt.BlankCursor)  # lässt Mauszeiger verschwinden
 Worms()
 sys.exit(app.exec_())
-
