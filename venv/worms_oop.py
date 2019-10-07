@@ -74,7 +74,8 @@ class Worms:
 
         # decreasing this makes shots way less precise
         self.frame_count = self.travel_rate
-        self.max_shot_magnitude = 5  # how string the shot will be. the less the travel_rate,
+        self.max_shot_magnitude = magnitude_scaling_function(
+            WIDTH)  # how string the shot will be. the less the travel_rate,
         # the lower this should be
         self.gravity_pull = 9.81
         self.mass = 9 * 10 ** -3  # the mass of default projectile
@@ -390,35 +391,38 @@ class Worms:
             self.redraw_canons(0, 0)
 
     def move_tank_left(self):
-        print("2")
         self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
+        self.mappainter.setPen(Qt.white)
+        self.mappainter.setBrush(Qt.white)
         if self.currentPlayer == 1:
             self.mappainter.drawEllipse(QPoint(self.player1Pos.x(), self.player1Pos.y()), 16, 16)
-            self.player1Pos += QPoint(-20, self.curve[self.player1Pos.x() - 20])
+            self.player1Pos = QPoint(self.player1Pos.x() - 4, self.curve[self.player1Pos.x() - 4])
             self.bulletPos = self.player1Pos
 
         else:
             self.mappainter.drawEllipse(QPoint(self.player2Pos.x(), self.player2Pos.y()), 16, 16)
-            self.player2Pos += QPoint(-100, self.curve[self.player2Pos.x() - 100])
+            self.player2Pos = QPoint(self.player2Pos.x() - 4, self.curve[self.player2Pos.x() - 4])
             self.bulletPos = self.player2Pos
-        print("3")
         self.charsImg = self.create_chars_image()
         self.draw_chars_img(self.charsImg)
+        self.redraw_canons(WIDTH / 2, HEIGHT / 2)
+
 
     def move_tank_right(self):
-        print("5")
         self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
+        self.mappainter.setPen(Qt.white)
+        self.mappainter.setBrush(Qt.white)
         if self.currentPlayer == 1:
             self.mappainter.drawEllipse(QPoint(self.player1Pos.x(), self.player1Pos.y()), 16, 16)
-            self.player1Pos += QPoint(20, self.curve[self.player1Pos.x() + 20])
+            self.player1Pos = QPoint(self.player1Pos.x() + 4, self.curve[self.player1Pos.x() + 4])
             self.bulletPos = self.player1Pos
         else:
             self.mappainter.drawEllipse(QPoint(self.player2Pos.x(), self.player2Pos.y()), 16, 16)
-            self.player2Pos += QPoint(20, self.curve[self.player2Pos.x() + 20])
+            self.player2Pos = QPoint(self.player2Pos.x() + 4, self.curve[self.player2Pos.x() + 4])
             self.bulletPos = self.player2Pos
-        print("6")
         self.charsImg = self.create_chars_image()
         self.draw_chars_img(self.charsImg)
+        self.redraw_canons(WIDTH / 2, HEIGHT / 2)
 
 
 
