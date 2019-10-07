@@ -22,6 +22,7 @@ class Worms:
         self.display.setMouseTracking(True)
         self.display.mouseMoveEvent = self.mouse_move_event
         self.display.mousePressEvent = self.mouse_press_event  # Klick wechselt Spieler
+        self.display.keyPressEvent = self.keyPressEvent
 
         self.W = np.linspace(0.001, 0.05, 20)  # W war vorgegeben
         self.curve = self.create_curve()
@@ -52,6 +53,8 @@ class Worms:
 
         self.travel_rate = 3  # makes bullet travel every xth frame when rate is 1/x
         self.frame_count = self.travel_rate
+
+        self.testanglevar = 0
 
 
     def set_takeoff_angle(self):
@@ -251,6 +254,41 @@ class Worms:
         self.display.setPixmap(QPixmap.fromImage(img))
         self.display.show()
 
+    def step_canons(self):
+        img = self.worldImg.copy()
+        painter = QPainter(img)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+
+        # zeichnet das Kanonenrohr des jeweils anderen Spielers
+        if self.currentPlayer == 1:
+            painter.drawPixmap(self.player2Pos.x() - 4, self.player2Pos.y() - 30, QPixmap.fromImage(self.canonImg2))
+        else:
+            painter.drawPixmap(self.player1Pos.x() - 4, self.player1Pos.y() - 30, QPixmap.fromImage(self.canonImg1))
+
+        new_corner = self.player1Pos if self.currentPlayer == 1 else self.player2Pos
+        painter.translate(new_corner)
+
+        # angle = self.get_angle(x, y)
+        self.testanglevar += 10
+        print(self.testanglevar)
+        painter.rotate(self.testanglevar)
+
+        if self.currentPlayer == 1:
+            painter.drawPixmap(QPoint(-4, 0), QPixmap.fromImage(self.canonImg1))
+        else:
+            painter.drawPixmap(QPoint(-4, 0), QPixmap.fromImage(self.canonImg2))
+
+        # setze alles wieder zurück, damit beim nächsten Aufruf das Kanonenrohr des anderen richtig gezeichnet wird
+        painter.rotate(-self.testanglevar + 10)
+        painter.translate(-new_corner)
+        painter.end()
+
+        self.worldImgFrozen = img  # speichere die Kanonenpositionen für den Fall dass eine Animation folgt
+        self.display.setPixmap(QPixmap.fromImage(img))
+        self.display.show()
+
     def animation(self):
         img = self.worldImgFrozen.copy()  # die frozen Kopie, damit die Kanonenpositionen erhalten bleiben
         painter = QPainter(img)
@@ -285,7 +323,7 @@ class Worms:
                self.bulletPos.y() - self.shot_vector.y())
         if self.pull >= 1 :
             print("plunk", self.pull)
-            self.shot_vector -= QPoint(0,np.floor(self.pull))
+            self.shot_vector -= QPoint(0, np.floor(self.pull))
             self.pull = self.pull % 1
 
 
@@ -301,6 +339,8 @@ class Worms:
         painter.translate(-self.bulletPos)
         painter.rotate(-angle)
         painter.end()
+
+
 
 
         self.display.setPixmap(QPixmap.fromImage(img))
@@ -332,9 +372,26 @@ class Worms:
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
             self.redraw_canons(0, 0)
+        if event.key() == Qt.Key_1:
+            self.display.setMouseTracking(False)
+            self.redraw_canons(0, 0)
+        if event.key() == Qt.Key_2:
+            self.display.setMouseTracking(False)
+            self.redraw_canons(0, 50)
+        if event.key() == Qt.Key_3:
+            self.display.setMouseTracking(False)
+            self.redraw_canons(0, 100)
+        if event.key() == Qt.Key_4:
+            self.display.setMouseTracking(False)
+            self.redraw_canons(0, 150)
+        if event.key() == Qt.Key_5:
+            self.display.setMouseTracking(False)
+            self.redraw_canons(0, 200)
+        if event.key() == Qt.Key_R:
+            self.display.setMouseTracking(False)
+            self.step_canons()
 
 app = QApplication(sys.argv)
 # app.setOverrideCursor(Qt.BlankCursor)  # lässt Mauszeiger verschwinden
 Worms()
 sys.exit(app.exec_())
-
