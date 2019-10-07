@@ -35,15 +35,17 @@ class Worms:
         self.W = np.linspace(0.001, 0.05, 20)  # W war vorgegeben
         self.curve = self.create_curve()
 
+        # self.timer = QTimer()
+        # self.timer.timeout.connect(self.animation)
+
         self.mousePos = None
-
-        self.playerlist = []
-        self.entitylist = self.playerlist       # TODO: separate entities from players and draw players on mousemove only
-
-        self.playercount = 4        # TODO: take input from menu
-        self.createPlayers(self.playercount)
-
-
+        self.player1Pos = QPoint(200, self.curve[200])
+        self.player2Pos = QPoint(1000, self.curve[1000])
+        self.currentPlayer = Player(0)
+        self.currentPlayer.setPlayerPos(tuple([200, self.curve[200]]))
+        self.entitylist = []
+        self.entitylist.append(self.currentPlayer)
+        print(self.entitylist)
 
         self.worldImg = self.create_world_image()  # das Bild, das immer erhalten und bemalt wird
         self.worldImgFrozen = self.worldImg.copy()  # s. unten
@@ -74,20 +76,6 @@ class Worms:
 
         self.draw()
 
-    def createPlayers(self, quantity):          # quantity must not be higher than 4 !
-        if quantity >= 5:
-            print('TOO MANY PLAYERS')
-        else:
-            for i in range(0, quantity):
-                if i == 0:
-                    self.currentPlayer = Player(0)
-                    self.playerlist.append(self.currentPlayer)
-                else:
-                    self.playerlist.append(Player(i))
-                x_pos = int(i*WIDTH/quantity)+int(WIDTH/(quantity*2))
-                self.playerlist[-1].setPlayerPos(tuple([x_pos, self.curve[x_pos]]))
-                print('created player '+str(i))
-
     def draw(self,):
         debug = False
 
@@ -107,6 +95,35 @@ class Worms:
                 mainpainter.setBrush(Qt.red)
                 mainpainter.drawEllipse(entity.pos[0]-3, entity.pos[1]-3, 5, 5)
 
+        #  OLD CODE
+        # px = self.currentPlayer.pos[0]
+        # py = self.currentPlayer.pos[1]
+        # angle = self.currentPlayer.aimAngel
+        #
+        # qpoint = QPoint(px-31, py-15)
+        # # tempimage = self.currentPlayer.draw()
+        # # mainpainter.drawImage(qpoint, tempimage)
+        # test = QPixmap('resources/tank.png').scaled(72, 30, Qt.KeepAspectRatio)
+        # mainpainter.drawPixmap(qpoint, test)
+        #
+        # if debug:
+        #     mainpainter.setBrush(Qt.red)
+        #     mainpainter.drawText(px, py, '+')
+        #
+        # mainpainter.translate(px+4, py-10)
+        # mainpainter.rotate(angle)
+        #
+        # color = QColor("#788E2D")
+        # mainpainter.setPen(color)
+        # mainpainter.setBrush(color)
+        # mainpainter.drawRect(0, 0, 4, 30)
+        #
+        # # braucht man evtl gar nich weil der painter beendet wird?
+        # mainpainter.rotate(-angle)
+        # mainpainter.translate(-px+4, -py-10)
+
+
+
         self.display.setPixmap(background)
         self.display.show()
 
@@ -124,19 +141,6 @@ class Worms:
         for i in range(len(self.W)):
             fx += 1 / np.sqrt(self.W[i]) * np.sin(self.W[i] * x + r1[i]) * r2[i]
         return fx * 3 + 350  # willkürliche Skalierung (Ausprobieren)
-
-    # def get_curve_length(self):
-    #
-    #     total = 0
-    #     current_y = self.curve[0]
-    #     previous_y = 0
-    #     for x in range(5, WIDTH, 5):
-    #         previous_y = current_y
-    #         current_y = self.curve[x]
-    #         total += np.sqrt(25 + (current_y - previous_y)**2)
-    #
-    #     return total
-
 
     def create_world_image(self):
         land = self.create_bool_landscape()
@@ -186,19 +190,13 @@ class Worms:
 
         return np.floor(angle)
 
-    def shoot(self):
-        print('boom')
-        time.sleep(2)
-
     def mouse_press_event(self, event):
         qpos = event.pos()
         self.mousePos = tuple([qpos.x(), qpos.y()])
-        self.display.setMouseTracking(False)
+        # self.set_takeoff_angle()
+        # self.display.setMouseTracking(False)
+        # self.timer.start(1)
         print(self.getAngle(self.currentPlayer.pos, self.mousePos))
-        self.shoot()    # running this command adds delay!
-        self.currentPlayer = self.playerlist[(self.currentPlayer.getID()+1) % self.playercount]
-        self.display.setMouseTracking(True)
-
 
     def mouse_move_event(self, event):
         mousePos = event.pos()
@@ -227,9 +225,6 @@ class Player:
     def getPOR(self):
         return tuple([self.pos[0]-self.size[0]//2, self.pos[1]-55])
 
-    def getID(self):
-        return self.id
-
     def setPlayerName(self, name):
         self.name = name
 
@@ -245,70 +240,6 @@ class Player:
         layer = np.zeros([self.size[0], 2*self.size[1], 4])
         layer[:, :, 3] = 0  # macht Ebene transparent
         img = QImage(layer, self.size[0], 2*self.size[1], QImage.Format_RGBA8888)
-        painter = QPainter(img)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
-
-        # draw cannon
-        angle = self.aimAngel
-
-        if debug:
-            painter.setPen(Qt.red)
-            painter.setBrush(QColor('#00000000'))
-            painter.drawRect(0, 0, self.size[0], 2*self.size[1])
-            spirte = QPixmap('resources/tank_debug.png').scaled(self.size[0], self.size[1], Qt.KeepAspectRatio)
-            painter.drawPixmap(0, 25, spirte)
-
-            painter.translate(35, 30)
-            painter.rotate(angle)
-
-            color = Qt.red
-            painter.setPen(color)
-            painter.setBrush(color)
-            painter.drawRect(0, 0, 4, 30)
-
-            painter.rotate(-angle)
-            painter.translate(-35, -30)
-        else:
-            spirte = QPixmap('resources/tank.png').scaled(self.size[0], self.size[1], Qt.KeepAspectRatio)
-            painter.drawPixmap(0, 25, spirte)
-
-            painter.translate(35, 30)
-            painter.rotate(angle)
-
-            color = QColor("#788E2D")
-            painter.setPen(color)
-            painter.setBrush(color)
-            painter.drawRect(0, 0, 4, 30)
-
-        painter.end()
-
-        return img
-
-class Bullet:
-
-    def __init__(self):
-
-        self.color = Qt.gray
-        self.pos = (-100, -100)
-        self.size = (4, 10)
-        self.velocity = (0, 0)
-
-    def getPOR(self):
-        return tuple([self.pos[0]-self.size[0]//2, self.pos[1]-self.size[1]])
-
-    def getFlightAngle(self):
-        return 180
-
-    def setvelocity(self, velocity):
-        self.velocity = velocity
-
-    def draw(self):
-        debug = False
-
-        layer = np.zeros([self.size[0], self.size[1], 4])
-        layer[:, :, 3] = 0  # macht Ebene transparent
-        img = QImage(layer, self.size[0], self.size[1], QImage.Format_RGBA8888)
         painter = QPainter(img)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
