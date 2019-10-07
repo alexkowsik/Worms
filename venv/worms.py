@@ -3,6 +3,8 @@ from PyQt5 import QtWidgets as qw
 from PyQt5 import QtGui as qg
 from PyQt5 import QtCore as qc
 import random
+import sys
+import os
 
 
 
@@ -329,27 +331,8 @@ class Settings(SNAKE):
 
 
 class Game:
+    os.open("worms_oop.py")
 
-
-    def __init__(self, controller):
-        print('hatching smol snek...')
-        self.duct_tape = controller
-
-        self.display = qw.QLabel()
-        self.display.setFixedSize(800, 800)
-        self.display.keyPressEvent = self.keyPressEvent
-        self.display.setWindowTitle("- henlo, I ams smol snek")
-        self.display.setWindowIcon(qg.QIcon("resources/tak_icon.png"))
-        fg = self.display.frameGeometry()
-        centrum = qw.QDesktopWidget().availableGeometry().center()
-        fg.moveCenter(centrum)
-        self.display.move(fg.topLeft())
-
-
-        self.width = self.display.frameGeometry().width()
-        self.height = self.width
-        self.display.show()
-        print("ok")
 
 
 

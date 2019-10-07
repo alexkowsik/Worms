@@ -41,6 +41,8 @@ class Worms:
         self.player1Pos = QPoint(20 * WIDTH / 100, self.curve[int(np.floor(20 * WIDTH / 100))])
         self.player2Pos = QPoint(80 * WIDTH / 100, self.curve[int(np.floor(80 * WIDTH / 100))])
         self.currentPlayer = 1
+        self.player1Health = 100
+        self.player2Health = 100
 
         self.worldImg = self.create_world_image()  # das Bild, das immer erhalten und bemalt wird
         self.worldImgFrozen = self.worldImg.copy()  # s. unten
@@ -72,8 +74,7 @@ class Worms:
 
         # decreasing this makes shots way less precise
         self.frame_count = self.travel_rate
-        self.max_shot_magnitude = magnitude_scaling_function(
-            WIDTH)  # how string the shot will be. the less the travel_rate,
+        self.max_shot_magnitude = 5  # how string the shot will be. the less the travel_rate,
         # the lower this should be
         self.gravity_pull = 9.81
         self.mass = 9 * 10 ** -3  # the mass of default projectile
@@ -88,7 +89,7 @@ class Worms:
         mouse_click_y = self.mousePos.y()
 
         if mouse_click_x == px:
-            if y <= py:
+            if mouse_click_y <= py:
                 self.takeoff_angle = -np.pi / 2
             else:
                 self.takeoff_angle = np.pi / 2
@@ -159,6 +160,7 @@ class Worms:
         return land
 
     def make_crater(self, x, radius):
+        # x = self.bullet1Pos.x() beim aufschlag der kugel
         # setzt den painter auf den "Radiermodus"
         self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
         self.mappainter.setPen(Qt.white)
@@ -167,22 +169,53 @@ class Worms:
         self.old_player1Pos = self.player1Pos
         self.old_player2Pos = self.player2Pos
         # zeichnet Krater an die Funktionsstelle von 500 mit Radius 50
-        self.mappainter.drawEllipse(QPoint(x, self.curve[x]), radius, radius)
+        self.mappainter.drawEllipse(QPoint(x, self.curve[x]), radius + 5, radius + 5)
 
+        for width in range(-radius, 0):
+            height = np.floor(
+                np.sqrt(
+                    np.abs(
+                        np.abs(
+                            np.power(radius, 2))
+                        -
+                        np.power(width, 2))))
+            # if not self.curve[x] > self.curve[x + width] + height:
+            self.curve[x + width] = self.curve[x] + height + 5
+            self.curve[x - width] = self.curve[x] + height + 5
+        self.curve[x] += radius
 
-        for width in range(-radius - 1, radius + 1):
-            height = np.sqrt(np.power(radius, 2) - np.power(width, 2))
-            self.curve[x + width] = self.curve[x + width] + height
+        self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        print("p")
+        self.mappainter.setPen(QPen(Qt.red, 2, Qt.SolidLine))
+        self.mappainter.setBrush(Qt.red)
+        for i in range(len(self.curve)):
+            self.mappainter.drawPoint(i, self.curve[i])
+        self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
+        self.mappainter.setPen(Qt.white)
+        self.mappainter.setBrush(Qt.white)
 
         if ((np.sqrt(np.power(self.old_player1Pos.x() - x, 2)
                      + np.power(self.old_player1Pos.y() - self.old_crater_yPos, 2)) < radius)):
-            self.player1Pos = QPoint(self.old_player1Pos.x(), -20 + self.curve[self.old_player1Pos.x()])
+            self.player1Pos = QPoint(self.old_player1Pos.x(), -6 + self.curve[self.old_player1Pos.x()])
+            for i in range(-10, 10):
+                print(self.curve[self.player1Pos.x() + i], " ", self.curve[self.player1Pos.x()])
             self.mappainter.drawEllipse(QPoint(self.old_player1Pos.x(), self.old_player1Pos.y()), 16, 16)
+            self.player1Health -= 0.7 * (radius * 1.8 - np.sqrt(np.power(self.old_player1Pos.x() - x, 2)
+                                                                + np.power(self.old_player1Pos.y() - self.curve[x], 2)))
+            """print(0.7 * (radius*1.8 - np.sqrt(np.power(self.old_player1Pos.x() - x,2)
+                                               + np.power(self.old_player1Pos.y() - self.curve[x], 2))), " " ,self.player1Health)"""
 
         if (np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
                     + np.power(self.old_player2Pos.y() - self.old_crater_yPos, 2)) < radius):
-            self.player2Pos = QPoint(self.old_player2Pos.x(), -20 + self.curve[self.old_player2Pos.x()])
+            self.player2Pos = QPoint(self.old_player2Pos.x(), -6 + self.curve[self.old_player2Pos.x()])
+            for i in range(-10, 10):
+                print(self.curve[self.player2Pos.x() + i], " ", self.curve[self.player2Pos.x()])
             self.mappainter.drawEllipse(QPoint(self.old_player2Pos.x(), self.old_player2Pos.y()), 16, 16)
+            self.player2Health -= 0.7 * (radius * 1.8 - np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
+                                                                + np.power(self.old_player2Pos.y() - self.curve[x], 2)))
+            """print(0.7*(radius*1.8 -np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
+                          + np.power(self.old_player2Pos.y() - self.curve[x], 2))),
+            " ", self.player2Health)"""
 
         self.charsImg = self.create_chars_image()
         self.draw_chars_img(self.charsImg)
@@ -211,7 +244,6 @@ class Worms:
         # setzt den painter af einen Modus, in welchem er Pixmaps übereinander zeichnen kann
         self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
         self.mappainter.drawPixmap(0, 0, QPixmap.fromImage(self.charsImg))
-        print("7")
 
     def create_canon_image(self, player):
         canon = np.zeros([7, 60, 4])  # das canon image ist nur 7px*60px groß
@@ -341,7 +373,7 @@ class Worms:
         if self.bulletPos.x() >= WIDTH or self.bulletPos.x() <= 0 \
                 or self.bulletPos.y() >= HEIGHT or self.bulletPos.y() <= -500:
             self.timer.stop()
-            self.bulletPos = self.player2Pos + QPoint(0, 0) \
+            self.bulletPos = self.player2Pos + QPoint(0, -8) \
                 if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 0)
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
@@ -351,7 +383,7 @@ class Worms:
         if self.bulletPos.y() >= self.curve[self.bulletPos.x()]:
             self.make_crater(self.bulletPos.x(), 50)
             self.timer.stop()
-            self.bulletPos = self.player2Pos + QPoint(0, 0) \
+            self.bulletPos = self.player2Pos + QPoint(0, -8) \
                 if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 00)
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
@@ -392,7 +424,7 @@ class Worms:
 
     def mouse_press_event(self, event):
         self.mousePos = event.pos()
-        print(self.mousePos.x(), " ", self.mousePos.y(), " ", self.curve[self.mousePos.x()])
+        #print(self.mousePos.x(), " ", self.mousePos.y(), " ", self.curve[self.mousePos.x()])
         self.set_takeoff_angle()
         self.display.setMouseTracking(False)
         self.timer.start(1)
