@@ -10,10 +10,11 @@ import skfmm
 import matplotlib.pyplot as plt
 
 
-WIDTH = 2000
+WIDTH = 1200
 HEIGHT = 600
-SCALING = 2.5*WIDTH/1920
-DEBUG = False
+SCALING = 1.5*(WIDTH/1920)/(HEIGHT/1080)
+METER = 10*SCALING
+DEBUG = True
 SCI_KIT = True
 
 # this version uses consitent angle measurements (degrees):
@@ -42,15 +43,18 @@ class Worms:
 
         self.mousePos = None
 
+        self.entitylist = []    # Bullet(s) have to be added to the entitylist before the players, because rendering
+        self.testbullet = Bullet()
+        self.entitylist.append(self.testbullet)
+
         self.playerlist = []
         self.playercount = 4        # TODO: take input from menu
         self.create_players(self.playercount)
         self.currentPlayer = self.playerlist[0]
-        self.entitylist = self.playerlist  # TODO: separate entities from players and draw players on mousemove only
+        self.entitylist += self.playerlist  # TODO: separate entities from players and draw players on mousemove only
 
-        self.testbullet = Bullet()
         self.testbullet.set_pos(self.currentPlayer.get_cannon_pos())
-        self.entitylist.append(self.testbullet)
+
 
         self.worldImg = self.create_world_image()  # das Bild, das immer erhalten und bemalt wird
         self.worldImgFrozen = self.worldImg.copy()  # s. unten
@@ -72,7 +76,8 @@ class Worms:
                 self.playerlist.append(Player(i))
                 x_pos = int(i*WIDTH/quantity)+int(WIDTH/(quantity*2))
                 self.playerlist[-1].set_player_pos(tuple([x_pos, self.curve[x_pos]]))
-                print('created player '+str(i))
+                if DEBUG:
+                    print('created player '+str(i))
 
     def draw(self,):        # draws all entities in self.entitylist omto the prerendered background once
 
@@ -106,7 +111,8 @@ class Worms:
         fx = 0
         for i in range(len(self.W)):
             fx += 1 / np.sqrt(self.W[i]) * np.sin(self.W[i] * x + r1[i]) * r2[i]
-        return fx * 3 + 350  # willkürliche Skalierung (Ausprobieren)
+        return fx * 3 + 350   # willkürliche Skalierung (Ausprobieren)
+        # TODO: hier ein minimum von der kurve für den offset benutzen
 
     # deprecated
     def get_curve_length(self):
@@ -173,29 +179,37 @@ class Worms:
         return angle
 
     def update_pos(self):
+        for entity in self.entitylist:
+            if entity.is_flying:
+                entity.update()
         self.test += 1
-        if DEBUG:
-            print('update pos ['+str(self.test)+']')
+        # if DEBUG:
+        #     print('update pos ['+str(self.test)+']')
 
     def shoot(self):
-        print('boom')
-        time.sleep(1)
+        self.testbullet.set_flight_angle(self.currentPlayer.aim_angle)
+        self.testbullet.set_speed(6.5*METER)   #TODO: figure out nice speed, possibly power meter?
+        self.testbullet.is_flying = True
+        if DEBUG:
+            print('boom')
 
     def mouse_press_event(self, event):
         qpos = event.pos()
         self.mousePos = tuple([qpos.x(), qpos.y()])
         self.display.setMouseTracking(False)
-        print(self.get_angle(self.currentPlayer.pos, self.mousePos))
-        self.shoot()    # running this command adds delay!
+        if DEBUG:
+            angle = self.get_angle(self.currentPlayer.pos, self.mousePos)
+            print(angle)
+        self.shoot()
         self.currentPlayer = self.playerlist[(self.currentPlayer.get_ID() + 1) % self.playercount]
-        self.testbullet.set_pos(self.currentPlayer.get_cannon_pos())
-        self.testbullet.set_flight_angle(self.currentPlayer.aim_angle)
         self.display.setMouseTracking(True)
 
     def mouse_move_event(self, event):
         mousePos = event.pos()
         self.currentPlayer.set_player_aim(tuple([mousePos.x(), mousePos.y()]))
-        self.testbullet.set_flight_angle(self.currentPlayer.aim_angle)
+        if not self.testbullet.is_flying:
+            self.testbullet.set_pos(self.currentPlayer.get_cannon_pos())
+            self.testbullet.set_flight_angle(self.currentPlayer.aim_angle)
         self.draw()
 
     def key_press_event(self, event):
@@ -212,10 +226,11 @@ class Player:
         self.id = index
         self.name = ''
         self.color = Qt.black
-        self.pos = (0, 0)       # pos is where the middle of the tank tracks touch the ground. use getPOR() for positioning tank on map
+        self.pos = (0, 0)    # pos is where the middle of the tank tracks touch the ground. use getPOR() for positioning tank on map
         self.aim_angle = 180
         self.size = (int(36*SCALING), int(15*SCALING))      # png is 36 x 15
         self.cannon_offset = int(self.size[1]*0.3)
+        self.is_flying = False
 
     def get_POR(self):
         return tuple([self.pos[0]-self.size[0]//2, self.pos[1]-self.size[0]//2-self.size[1]+self.cannon_offset])
@@ -241,8 +256,8 @@ class Player:
         x_offset = np.cos(angle)*cannonwidth
         y_offset = np.sin(angle)*cannonwidth
 
-        if (self.id == 0 and DEBUG):
-            print(angle, np.cos(angle), np.sin(angle))
+        # if (self.id == 0 and DEBUG):
+        #     print(angle, np.cos(angle), np.sin(angle))
         return tuple([x_offset, y_offset])
 
 
@@ -300,15 +315,20 @@ class Bullet:
 
         self.color = Qt.gray
         self.pos = (100, 100)     # pos is at center of bullet
-        self.size = int(8*SCALING)             # somewhat near sqrt(3**2 + 7.5 **2) because of rotation, 4x10 is png size scaled to 3 x 7.5
+        self.size = int(8*SCALING)      # 8 is somewhat near sqrt(3**2 + 7.5 **2) because of rotation, 4x10 is png size scaled to 3 x 7.5
         self.speed = 0
         self.flight_angle = 270
-        self.weight = 20
+        self.is_flying = False
 
-    def get_POR(self):
-        return tuple([self.pos[0]-self.size//2, self.pos[1]-self.size//2])
+    def get_POR(self):      # returns pos of the back of the bullet for easy positioning
+        projectile_width = 7.5/2*SCALING
+        angle = self.flight_angle * pi / 180
+        x_offset = np.sin(angle)*projectile_width
+        y_offset = -np.cos(angle)*projectile_width
 
-    def set_speed(self, speed):
+        return tuple([self.pos[0]-self.size//2-x_offset, self.pos[1]-self.size//2-y_offset])
+
+    def set_speed(self, speed):     # set speed in meters per second
         self.speed = speed
 
     def set_flight_angle(self, angle):
@@ -342,6 +362,23 @@ class Bullet:
         painter.end()
 
         return img
+
+    def update(self):   # calculates next pos and flight angle in 16ms intervall
+        if self.pos[1] > HEIGHT or self.pos[0] < -250 or self.pos[0] > WIDTH+250:
+            print('peng', self.pos[0], self.pos[1])
+            self.set_speed(0)
+            self.is_flying = False
+            self.set_flight_angle(0)
+        else:
+            tick = 8
+            x_move = self.speed*-np.sin(self.flight_angle*pi/180)*1/tick
+            y_move = self.speed*np.cos(self.flight_angle*pi/180)*1/tick+9.81*1/tick**2
+            self.speed -= -np.cos(self.flight_angle*pi/180)*9.81*1/tick
+            next_pos = tuple([self.pos[0]+x_move, self.pos[1]+y_move])
+            self.flight_angle = Worms.get_angle(self.pos, next_pos)
+            self.pos = next_pos
+        # if self.is_flying and DEBUG:
+        #     print(next_pos)
 
 
 app = QApplication(sys.argv)
