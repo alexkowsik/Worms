@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 WIDTH = 1200
 HEIGHT = 600
-SCALING = 1.5*(WIDTH/1920)/(HEIGHT/1080)
+SCALING = 2*np.sqrt(WIDTH/1920)
 METER = 10*SCALING
 DEBUG = True
 SCI_KIT = True
@@ -111,7 +111,7 @@ class Worms:
         fx = 0
         for i in range(len(self.W)):
             fx += 1 / np.sqrt(self.W[i]) * np.sin(self.W[i] * x + r1[i]) * r2[i]
-        return fx * 3 + 350   # willkürliche Skalierung (Ausprobieren)
+        return fx * 5*1/SCALING + HEIGHT*0.7     # willkürliche Skalierung (Ausprobieren)
         # TODO: hier ein minimum von der kurve für den offset benutzen
 
     # deprecated
@@ -188,7 +188,7 @@ class Worms:
 
     def shoot(self):
         self.testbullet.set_flight_angle(self.currentPlayer.aim_angle)
-        self.testbullet.set_speed(6.5*METER)   #TODO: figure out nice speed, possibly power meter?
+        self.testbullet.set_speed(6*METER)   #TODO: figure out nice speed, possibly power meter?
         self.testbullet.is_flying = True
         if DEBUG:
             print('boom')
