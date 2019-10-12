@@ -10,11 +10,11 @@ import skfmm
 import matplotlib.pyplot as plt
 
 
-WIDTH = 2000
+WIDTH = 1200
 HEIGHT = 600
 SCALING = 2*np.sqrt(WIDTH/1920)
 METER = 10*SCALING
-DEBUG = True
+DEBUG = False
 SCI_KIT = True
 
 # this version uses consitent angle measurements (degrees):
@@ -37,6 +37,10 @@ class Worms:
         self.display.mouseMoveEvent = self.mouse_move_event
         self.display.mousePressEvent = self.mouse_press_event  # Klick wechselt Spieler
         self.display.keyPressEvent = self.key_press_event
+        self.blur = QGraphicsBlurEffect()
+        self.blur.setBlurHints(QGraphicsBlurEffect.QualityHint)
+        self.blur.setBlurRadius(3)
+        self.display.setGraphicsEffect(self.blur)
 
         self.curve_min = 0
         self.W = np.linspace(0.001, 0.05, 20)  # W war vorgegeben
@@ -57,6 +61,7 @@ class Worms:
 
         self.testbullet.set_pos(self.currentPlayer.get_cannon_pos())
 
+        self.skybox = QPixmap('resources/sky3').scaled(WIDTH, HEIGHT)
         self.worldImg = self.update_world_image()  # das Bild, das immer erhalten und bemalt wird
         # self.worldImgFrozen = self.worldImg.copy()  # s. unten
         self.mappainter = QPainter(self.worldImg)
@@ -83,10 +88,13 @@ class Worms:
 
     def draw(self,):        # draws all entities in self.entitylist omto the prerendered background once
 
+        canvas = self.skybox.copy()
         background = QPixmap.fromImage(self.worldImg.copy())
-        mainpainter = QPainter(background)
+        mainpainter = QPainter(canvas)
         mainpainter.setRenderHint(QPainter.Antialiasing)
         mainpainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        mainpainter.drawPixmap(0, 0, background)
+
 
         for entity in self.entitylist:
             tempimage = entity.draw()
@@ -96,7 +104,7 @@ class Worms:
                 mainpainter.setPen(Qt.red)
                 mainpainter.drawLine(entity.pos[0]-3, entity.pos[1]-3, entity.pos[0]+3, entity.pos[1]+3)
                 mainpainter.drawLine(entity.pos[0]+3, entity.pos[1]-3, entity.pos[0]-3, entity.pos[1]+3)
-        self.display.setPixmap(background)
+        self.display.setPixmap(canvas)
         self.display.show()
 
         mainpainter.end()
@@ -108,12 +116,10 @@ class Worms:
         minimum = 0
         for i in range(WIDTH):
             current = self.get_curve_fx(i, random1, random2)
-            print(current)
             values.append(current)
             if current > minimum:
                 minimum = current
         self.curve_min = minimum
-        print('min = ', self.curve_min)
         for i in range(WIDTH):
             values[i] = values[i]+HEIGHT-self.curve_min-100/SCALING
         return values
@@ -181,14 +187,14 @@ class Worms:
     def update_pos(self):
         for entity in self.entitylist:
             if isinstance(entity, Player):
-                if entity.pos[1] >= HEIGHT-1:
+                if entity.pos[1] >= HEIGHT-1 or entity.health <= 0:
+                    if entity.health <= 0:
+                        self.explosion(entity.pos)
                     if entity == self.currentPlayer:
                         self.currentPlayer = self.playerlist.next()
-                    print(self.playerlist, self.playercount)
                     self.entitylist.remove(entity)
                     self.playerlist.remove(entity)
                     self.playercount -= 1
-                    print(self.playerlist, self.playercount)
                     print('player ', entity.get_ID(), ' died!')
                 else:
                     temp = not self.curve_model[int(entity.pos[1])+1][int(entity.pos[0])]
@@ -270,7 +276,8 @@ class Worms:
 
     def key_press_event(self, event):
         if event.key() == Qt.Key_Escape:
-            self.timer.stop()
+            self.blur.setEnabled(False)
+            self.blur.update()
             # self.currentPlayer = playerlist.next()
             self.display.setMouseTracking(True)
 
@@ -288,6 +295,7 @@ class Player:
         self.cannon_offset = int(self.size[1]*0.3)
         self.is_flying = False
         self.speed = 0
+        self.health = 100
 
     def get_POR(self):
         return tuple([self.pos[0]-self.size[0]//2, self.pos[1]-self.size[0]//2-self.size[1]+self.cannon_offset])
@@ -302,7 +310,7 @@ class Player:
         self.name = name
 
     def set_player_aim(self, target_pos):
-        self.aim_angle = Worms.get_angle(self.pos, target_pos)
+        self.aim_angle = Worms.get_angle(self.get_cannon_pos(), target_pos)
 
     def set_player_pos(self, destination):
         self.pos = destination
