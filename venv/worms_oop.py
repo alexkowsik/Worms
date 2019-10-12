@@ -34,8 +34,12 @@ class Worms:
         self.W = np.linspace(0.001, 0.05, 20)  # W war vorgegeben
         self.curve = self.create_curve()
 
+        self.windfield = self.get_wind_vector_field()
+        self.set_windboxes()
+
         self.timer = QTimer()
         self.timer.timeout.connect(self.animation)
+
 
         self.mousePos = None
         self.player1Pos = QPoint(20 * WIDTH / 100, self.curve[int(np.floor(20 * WIDTH / 100))])
@@ -48,13 +52,17 @@ class Worms:
         self.worldImgFrozen = self.worldImg.copy()  # s. unten
         self.mappainter = QPainter(self.worldImg)
         self.mappainter.setRenderHint(QPainter.Antialiasing)
+        self.healthpainter = QPainter(self.worldImg)
+        self.healthpainter.setRenderHint(QPainter.Antialiasing)
 
         self.charsImg = self.create_chars_image()
         self.canonImg1 = self.create_canon_image(1)
         self.canonImg2 = self.create_canon_image(2)
+        self.healthbar1 = self.create_healtbar()
+
 
         self.bulletImg = self.create_bullet_image()
-        self.bulletPos = self.player1Pos + QPoint(0, 0)
+        self.bulletPos = self.player1Pos
 
         # self.make_crater(500, 50)  # demo: x = 500, radius = 50
         self.draw_chars_img(self.charsImg)
@@ -80,6 +88,18 @@ class Worms:
         self.gravity_pull = 9.81
         self.mass = 9 * 10 ** -3  # the mass of default projectile
 
+    def create_healtbar(self):
+        bar = np.zeros([7, 60, 4])  # das canon image ist nur 7px*60px groß
+        bar[:, :, 3] = 0
+        img = QImage(bar, 7, 60, QImage.Format_RGBA8888)
+        barpainter = QPainter(img)
+        color = QColor(qRgb(0, 135, 0))
+        barpainter.setPen(color)
+        barpainter.setBrush(color)
+        barpainter.drawRect(0, 0, 7, 30)
+        barpainter.drawRect(7, 30, 7, 30)
+        return img
+
     def set_takeoff_angle(self):
         # this computes the angle of the shot, measured by the line between the player
         # and the mouseclick and stores this as a Vector in shot_vector.
@@ -88,7 +108,6 @@ class Worms:
         py = self.player1Pos.y() if self.currentPlayer == 1 else self.player2Pos.y()
         mouse_click_x = self.mousePos.x()
         mouse_click_y = self.mousePos.y()
-
         if mouse_click_x == px:
             if mouse_click_y <= py:
                 self.takeoff_angle = -np.pi / 2
@@ -109,19 +128,37 @@ class Worms:
 
     # TODO: nicht für alle Pixel, sondern nur für eine Korrdinate berechnen, die übergeben wird
     def get_wind_vector_field(self):
-        r1 = [random.uniform(0, 2 * pi) for _ in range(len(self.W))]
-        r2 = [random.uniform(-1, 1) for _ in range(len(self.W))]
-        r3 = [random.uniform(0, 2 * pi) for _ in range(len(self.W))]
-        r4 = [random.uniform(-1, 1) for _ in range(len(self.W))]
-        windvector = np.zeros([HEIGHT, WIDTH])
+        class obj:
+            def __init__(self, width, height):
+                self.vector = QPoint(0, 0)
+                self.left_boundary = (WIDTH * width) / 16
+                self.right_boundary = (WIDTH * (width + 1)) / 16
+                self.upper_boundary = (HEIGHT * height) / 9
+                self.lower_boundary = (HEIGHT * (height + 1)) / 9
 
-        for i in range(WIDTH):
-            tmp = self.get_curve_fx(i, r1, r2)
-            for j in range(HEIGHT):
-                if j > self.curve[i]:
-                    break
-                windvector[j][i] = (tmp + self.get_curve_fx(j, r3, r4) - 700) / 6
-        return windvector
+        self.setup_windboxes = [[0 for x in range(16)] for y in range(9)]
+        for width in range(16):
+            for height in range(9):
+                self.setup_windboxes[height][width] = obj(width, height)
+                # if bullet.x > wind[1], < wind[2], bullet.y > wind[3] , bullet. < wind[4]
+        print(self.setup_windboxes[0][0], " ", self.setup_windboxes[0][0].lower_boundary)
+        return self.setup_windboxes
+
+    def set_windboxes(self):
+        # add to entity vectors
+        # get general direction in vector form.  (-10t010,10to-10)
+        randx = random.uniform(-5, 5)
+        randy = random.uniform(-3, 3)
+        # randxhelp = random.uniform(-1.6,1.6)
+        # randyhelp = random.uniform(-1,1)
+
+        for width in range(16):
+            for height in range(9):
+                # get slightly varying direction from upper value
+                vec = QPoint(np.floor(randx + random.uniform(-1.6, 1.6)), np.floor(randy + random.uniform(-1, 1)))
+                self.windfield[height][width].vector = vec  # set direction
+
+
 
     def create_curve(self):
         random1 = [random.uniform(0, 2 * pi) for _ in range(len(self.W))]
@@ -180,9 +217,10 @@ class Worms:
                             np.power(radius, 2))
                         -
                         np.power(width, 2))))
-            # if not self.curve[x] > self.curve[x + width] + height:
-            self.curve[x + width] = self.curve[x] + height + 5
-            self.curve[x - width] = self.curve[x] + height + 5
+            if not self.curve[x + width] > self.curve[x] + height + 5:
+                self.curve[x + width] = self.curve[x] + height + 5
+            if not self.curve[x - width] > self.curve[x] + height + 5:
+                self.curve[x - width] = self.curve[x] + height + 5
         self.curve[x] += radius
 
         self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
@@ -357,6 +395,9 @@ class Worms:
         # pauses pull and bullet travel, but not pull and bullet simulation
         if self.frame_count == self.travel_rate:
             self.frame_count = -1
+            # doesnt work
+            # temp = self.windfield[np.floor(self.bulletPos.y()/9)][np.floor(self.bulletPos.x()/16)].vector
+            #print(temp.x())
             self.bulletPos = shot
 
         self.frame_count += 1
