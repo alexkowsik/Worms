@@ -96,7 +96,6 @@ class Worms:
                 mainpainter.setPen(Qt.red)
                 mainpainter.drawLine(entity.pos[0]-3, entity.pos[1]-3, entity.pos[0]+3, entity.pos[1]+3)
                 mainpainter.drawLine(entity.pos[0]+3, entity.pos[1]-3, entity.pos[0]-3, entity.pos[1]+3)
-
         self.display.setPixmap(background)
         self.display.show()
 
@@ -213,16 +212,19 @@ class Worms:
         diameter = 2*radius
         x_por = int(pos[0])
         y_por = int(pos[1])
-        x_low = 1/2 * (x_por-diameter - np.abs(x_por-diameter))                     # part of x_range, that is out of bounds in  neg x direction
-        x_high = -1/2 * (WIDTH-(x_por+diameter)-np.abs(WIDTH-(x_por+diameter)))     # part of x_range, that is out of bounds in  pos x direction
-        x_start = x_por + x_low - x_high - radius
-        x_range = diameter-(x_low + x_high)
-        y_low = 1/2 * (y_por-diameter - np.abs(y_por-diameter))                     # part of y_range, that is out of bounds in  neg y direction
-        y_high = -1/2 * (HEIGHT-(y_por+diameter)-np.abs(HEIGHT-(y_por+diameter)))   # part of y_range, that is out of bounds in  pos y direction
-        y_start = y_por + y_low - y_high - radius
-        y_range = diameter-(y_low + y_high)
+        x_range = diameter
+        y_range = diameter
+        x_start = x_por-radius
+        y_start = y_por-radius
+        if x_por-radius < 0:
+            x_start = 0
+            x_range += x_por-radius
+        elif x_por+radius > WIDTH:
+            x_range += WIDTH-x_por-radius
+        if y_por+radius > HEIGHT:
+            y_range += HEIGHT-y_por-radius
         if DEBUG:
-            print(x_por, x_low, x_high, x_range, y_por, y_low, y_high, y_range)
+            print(x_por, x_range, y_por, y_range)
         return [int(x_start), int(y_start), int(x_range), int(y_range)]
 
     def shoot(self):
