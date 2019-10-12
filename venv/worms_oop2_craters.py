@@ -49,7 +49,7 @@ class Worms:
         self.testbullet = Bullet()
         self.entitylist.append(self.testbullet)
 
-        self.playerlist = []
+        self.playerlist = UglyLinkedList([])
         self.playercount = 4        # TODO: take input from menu
         self.create_players(self.playercount)
         self.currentPlayer = self.playerlist[0]
@@ -180,6 +180,21 @@ class Worms:
 
     def update_pos(self):
         for entity in self.entitylist:
+            if isinstance(entity, Player):
+                if entity.pos[1] >= HEIGHT-1:
+                    if entity == self.currentPlayer:
+                        self.currentPlayer = self.playerlist.next()
+                    print(self.playerlist, self.playercount)
+                    self.entitylist.remove(entity)
+                    self.playerlist.remove(entity)
+                    self.playercount -= 1
+                    print(self.playerlist, self.playercount)
+                    print('player ', entity.get_ID(), ' died!')
+                else:
+                    temp = not self.curve_model[int(entity.pos[1])+1][int(entity.pos[0])]
+                    entity.is_flying = temp
+                    if not temp:
+                        entity.speed = 0
             if entity.is_flying:
                 entity.update()
         self.test += 1
@@ -242,7 +257,7 @@ class Worms:
             angle = self.get_angle(self.currentPlayer.pos, self.mousePos)
             print(angle)
         self.shoot()
-        self.currentPlayer = self.playerlist[(self.currentPlayer.get_ID() + 1) % self.playercount]
+        self.currentPlayer = self.playerlist.next()
         self.display.setMouseTracking(True)
 
     def mouse_move_event(self, event):
@@ -272,6 +287,7 @@ class Player:
         self.size = (int(36*SCALING), int(15*SCALING))      # png is 36 x 15
         self.cannon_offset = int(self.size[1]*0.3)
         self.is_flying = False
+        self.speed = 0
 
     def get_POR(self):
         return tuple([self.pos[0]-self.size[0]//2, self.pos[1]-self.size[0]//2-self.size[1]+self.cannon_offset])
@@ -349,6 +365,19 @@ class Player:
 
         return img
 
+    def update(self):
+        if self.pos[1] > HEIGHT+self.size[1]:
+            print('bumm', self.pos[0], self.pos[1])
+            self.speed = 0
+            self.is_flying = False
+        else:
+            tick = 8
+            # x_move = self.speed*-np.sin(self.flight_angle*pi/180)*1/tick
+            x_move = 0
+            y_move = self.speed*1/tick+9.81*1/tick**2
+            self.speed += 9.81*1/tick
+            next_pos = tuple([self.pos[0]+x_move, self.pos[1]+y_move])
+            self.pos = next_pos
 
 class Bullet:
 
@@ -421,6 +450,29 @@ class Bullet:
         # if self.is_flying and DEBUG:
         #     print(next_pos)
 
+
+class UglyLinkedList:       # next() function needed to easily keep track of current_player even if players die (get removed from list)
+
+    def __init__(self, item_list):
+        self.data = item_list
+        self.current_index = 0
+
+    def next(self):
+        if len(self.data) == 0:
+            return None
+        self.current_index = (self.current_index+1)%len(self.data)
+        return self.data[self.current_index]
+
+    def append(self, item):
+        self.data.append(item)
+
+    def remove(self, item):
+        if self.data.index(item) < self.current_index:
+            self.current_index -= 1
+        self.data.remove(item)
+
+    def __getitem__(self, index):
+        return self.data[index]
 
 app = QApplication(sys.argv)
 # app.setOverrideCursor(Qt.BlankCursor)  # lässt Mauszeiger verschwinden
