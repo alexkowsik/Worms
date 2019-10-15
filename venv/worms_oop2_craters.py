@@ -37,10 +37,10 @@ class Worms:
         self.display.mouseMoveEvent = self.mouse_move_event
         self.display.mousePressEvent = self.mouse_press_event  # Klick wechselt Spieler
         self.display.keyPressEvent = self.key_press_event
-        self.blur = QGraphicsBlurEffect()
-        self.blur.setBlurHints(QGraphicsBlurEffect.QualityHint)
-        self.blur.setBlurRadius(3)
-        self.display.setGraphicsEffect(self.blur)
+        # self.blur = QGraphicsBlurEffect()
+        # self.blur.setBlurHints(QGraphicsBlurEffect.QualityHint)
+        # self.blur.setBlurRadius(3)
+        # self.display.setGraphicsEffect(self.blur)
 
         self.curve_min = 0
         self.W = np.linspace(0.001, 0.05, 20)  # W war vorgegeben
@@ -201,6 +201,8 @@ class Worms:
                     entity.is_flying = temp
                     if not temp:
                         entity.speed = 0
+            if isinstance(entity, Bullet) and not entity.is_flying:
+                self.display.setMouseTracking(True)
             if entity.is_flying:
                 entity.update()
         self.test += 1
@@ -264,7 +266,7 @@ class Worms:
             print(angle)
         self.shoot()
         self.currentPlayer = self.playerlist.next()
-        self.display.setMouseTracking(True)
+        # self.display.setMouseTracking(True)
 
     def mouse_move_event(self, event):
         mousePos = event.pos()
@@ -272,14 +274,14 @@ class Worms:
         if not self.testbullet.is_flying:
             self.testbullet.set_pos(self.currentPlayer.get_cannon_pos())
             self.testbullet.set_flight_angle(self.currentPlayer.aim_angle)
-        self.draw()
+        # self.draw()
 
     def key_press_event(self, event):
         if event.key() == Qt.Key_Escape:
-            self.blur.setEnabled(False)
-            self.blur.update()
-            # self.currentPlayer = playerlist.next()
-            self.display.setMouseTracking(True)
+            # self.blur.setEnabled(False)
+            # self.blur.update()
+            self.timer.stop()
+            self.display.setMouseTracking(False)
 
 
 class Player:
