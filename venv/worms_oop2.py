@@ -6,7 +6,7 @@ import numpy as np
 import random
 from math import pi
 import time
-import skfmm
+#import skfmm
 import matplotlib.pyplot as plt
 
 
@@ -37,11 +37,18 @@ class Worms:
 
         self.mousePos = None
 
+        self.gravity_pull = 9.81    #can by any positive real number
         self.playerlist = []
+
+
         self.entitylist = self.playerlist       # TODO: separate entities from players and draw players on mousemove only
+
 
         self.playercount = 4        # TODO: take input from menu
         self.createPlayers(self.playercount)
+
+        self.bullet = Bullet()
+        self.entitylist.append(self.bullet)
 
 
 
@@ -73,6 +80,29 @@ class Worms:
         self.timer.start()
 
         self.draw()
+
+
+    def update_pos(self):
+        self.pull = 0
+        for obj in self.entitylist:
+            self.pull += self.gravity_pull * obj.mass
+
+        # updated location of bullet
+        shot = QPoint(self.bulletPos.x() + self.shot_vector.x(),
+                      self.bulletPos.y() - self.shot_vector.y())
+
+        if self.pull >= 1:
+            self.shot_vector -= QPoint(0, np.floor(self.pull))  # applying pull. direction changes
+            self.pull = self.pull % 1  # resetting pull
+
+        # only travel when frame_count % travel_rate = 0
+        # pauses pull and bullet travel, but not pull and bullet simulation
+        if self.frame_count == self.travel_rate:
+            self.frame_count = -1
+            self.bulletPos = shot
+
+        self.frame_count += 1
+
 
     def createPlayers(self, quantity):          # quantity must not be higher than 4 !
         if quantity >= 5:
@@ -142,10 +172,10 @@ class Worms:
         land = self.create_bool_landscape()
 
         # färbt den Boden entsprechend der Distanz zur Oberfläche
-        map_dist = skfmm.distance(land)
-        map_dist = map_dist / np.max(map_dist) * 4  # willkürlicher Faktor (alternativ 0.6 draufaddieren)
-        world = plt.cm.copper_r(map_dist)
-        # world = np.zeros([HEIGHT, WIDTH, 4])
+        # map_dist = skfmm.distance(land)
+        # map_dist = map_dist / np.max(map_dist) * 4  # willkürlicher Faktor (alternativ 0.6 draufaddieren)
+        # world = plt.cm.copper_r(map_dist)
+        world = np.zeros([HEIGHT, WIDTH, 4])
         world[:, :, 3] = land
         world = np.asarray(world * 255, np.uint8)  # Werte der colormap zwischen 0 und 1, also mit 255 skalieren
         return QImage(world, WIDTH, HEIGHT, QImage.Format_RGBA8888)
@@ -290,9 +320,10 @@ class Bullet:
     def __init__(self):
 
         self.color = Qt.gray
-        self.pos = (-100, -100)
+        self.pos = QPoint(0,0)
         self.size = (4, 10)
         self.velocity = (0, 0)
+        self.mass = 10
 
     def getPOR(self):
         return tuple([self.pos[0]-self.size[0]//2, self.pos[1]-self.size[1]])
