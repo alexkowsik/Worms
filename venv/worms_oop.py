@@ -10,9 +10,11 @@ import time
 # import skfmm
 # import matplotlib.pyplot as plt
 
-
+debug = True
+wdh = 16
+hght = 9
 WIDTH = 1355
-HEIGHT = int(np.floor(WIDTH * 9 / 16))
+HEIGHT = int(np.floor(WIDTH * hght / wdh))
 # because of how the simulation and the presentation of the simulation works, the resolution determines the
 # power of the shot. this code fits the resolutions to the magnitude and creates a polynial function
 # that finds the optimal magnitude
@@ -25,6 +27,8 @@ magnitude_scaling_function = np.poly1d(magnitude_scaling_function)
 class Worms:
     def __init__(self):
 
+        self.debug_counter = 0
+
         self.display = QLabel()
         self.display.setMouseTracking(True)
         self.display.mouseMoveEvent = self.mouse_move_event
@@ -34,16 +38,15 @@ class Worms:
         self.W = np.linspace(0.001, 0.05, 20)  # W war vorgegeben
         self.curve = self.create_curve()
 
-        self.windfield = self.get_wind_vector_field()
-        self.set_windboxes()
+
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.animation)
 
 
         self.mousePos = None
-        self.player1Pos = QPoint(20 * WIDTH / 100, self.curve[int(np.floor(20 * WIDTH / 100))])
-        self.player2Pos = QPoint(80 * WIDTH / 100, self.curve[int(np.floor(80 * WIDTH / 100))])
+        self.player1Pos = QPoint(20 * WIDTH / 100, self.curve[int(np.floor(20 * WIDTH / 100))] - 16)
+        self.player2Pos = QPoint(80 * WIDTH / 100, self.curve[int(np.floor(80 * WIDTH / 100))] - 16)
         self.currentPlayer = 1
         self.player1Health = 100
         self.player2Health = 100
@@ -60,7 +63,8 @@ class Worms:
         self.canonImg2 = self.create_canon_image(2)
         self.healthbar1 = self.create_healtbar()
 
-
+        self.windfield = self.get_wind_vector_field()
+        self.set_windboxes()
         self.bulletImg = self.create_bullet_image()
         self.bulletPos = self.player1Pos
 
@@ -80,10 +84,11 @@ class Worms:
         elif (WIDTH >= 800 and WIDTH < 1000):
             self.travel_rate = 5
 
+        self.rep = -1
         # decreasing this makes shots way less precise
         self.frame_count = self.travel_rate
         self.max_shot_magnitude = magnitude_scaling_function(
-            WIDTH)  # how string the shot will be. the less the travel_rate,
+            WIDTH) * 4 / 5  # how string the shot will be. the less the travel_rate,
         # the lower this should be
         self.gravity_pull = 9.81
         self.mass = 9 * 10 ** -3  # the mass of default projectile
@@ -131,34 +136,79 @@ class Worms:
         class obj:
             def __init__(self, width, height):
                 self.vector = QPoint(0, 0)
-                self.left_boundary = (WIDTH * width) / 16
-                self.right_boundary = (WIDTH * (width + 1)) / 16
-                self.upper_boundary = (HEIGHT * height) / 9
-                self.lower_boundary = (HEIGHT * (height + 1)) / 9
+                self.left_boundary = (WIDTH * width) / wdh
+                self.right_boundary = (WIDTH * (width + 1)) / wdh
+                self.upper_boundary = (HEIGHT * height) / hght
+                self.lower_boundary = (HEIGHT * (height + 1)) / hght
 
-        self.setup_windboxes = [[0 for x in range(16)] for y in range(9)]
-        for width in range(16):
-            for height in range(9):
+        self.setup_windboxes = [[0 for x in range(wdh)] for y in range(hght)]
+        for width in range(wdh):
+            for height in range(hght):
                 self.setup_windboxes[height][width] = obj(width, height)
                 # if bullet.x > wind[1], < wind[2], bullet.y > wind[3] , bullet. < wind[4]
-        print(self.setup_windboxes[0][0], " ", self.setup_windboxes[0][0].lower_boundary)
         return self.setup_windboxes
 
     def set_windboxes(self):
         # add to entity vectors
         # get general direction in vector form.  (-10t010,10to-10)
+
         randx = random.uniform(-5, 5)
         randy = random.uniform(-3, 3)
-        # randxhelp = random.uniform(-1.6,1.6)
-        # randyhelp = random.uniform(-1,1)
+        self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        self.mappainter.setPen(Qt.white)
+        self.mappainter.setBrush(Qt.white)
+        self.mappainter.drawEllipse(QPoint(HEIGHT - 62, 75), 20, 20)
 
-        for width in range(16):
-            for height in range(9):
+        # ---------------
+
+        self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        self.mappainter.setPen(QPen(Qt.red, 10, Qt.SolidLine))
+        self.mappainter.setBrush(Qt.red)
+
+        if randx > 0:
+            self.mappainter.drawLine(HEIGHT - 75, 75, HEIGHT - 50, 75)
+            self.mappainter.drawLine(HEIGHT - 50, 75, HEIGHT - 60, 60)
+            self.mappainter.drawLine(HEIGHT - 50, 75, HEIGHT - 60, 90)
+
+        else:
+            self.mappainter.drawLine(HEIGHT - 75, 75, HEIGHT - 50, 75)
+            self.mappainter.drawLine(HEIGHT - 75, 75, HEIGHT - 60, 60)
+            self.mappainter.drawLine(HEIGHT - 75, 75, HEIGHT - 60, 90)
+        # debug
+        if debug:
+            if self.debug_counter != 0:
+                for width in range(wdh):
+                    for height in range(hght):
+                        self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
+                        self.mappainter.setPen(Qt.white)
+                        self.mappainter.setBrush(Qt.white)
+
+                        self.mappainter.drawLine(int(np.floor((width * WIDTH) / wdh)),
+                                                 int(np.floor(height * HEIGHT) / hght),
+                                                 5 * self.windfield[height][width].vector.x() + int(
+                                                     np.floor((width * WIDTH) / wdh)),
+                                                 5 * self.windfield[height][width].vector.y() + int(
+                                                     np.floor(height * HEIGHT) / hght))
+                        self.mappainter.setPen(QPen(Qt.white, 3, Qt.SolidLine))
+                        self.mappainter.drawPoint(
+                            5 * self.windfield[height][width].vector.x() + int(np.floor((width * WIDTH) / wdh)),
+                            5 * self.windfield[height][width].vector.y() + int(np.floor(height * HEIGHT) / hght))
+            self.debug_counter = 1
+        for width in range(wdh):
+            for height in range(hght):
                 # get slightly varying direction from upper value
                 vec = QPoint(np.floor(randx + random.uniform(-1.6, 1.6)), np.floor(randy + random.uniform(-1, 1)))
                 self.windfield[height][width].vector = vec  # set direction
-
-
+            if debug:
+                self.mappainter.setPen(QPen(Qt.red, 3, Qt.SolidLine))
+                self.mappainter.setBrush(Qt.red)
+                self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+                self.mappainter.drawLine(int(np.floor((width * WIDTH) / wdh)), int(np.floor(height * HEIGHT) / hght),
+                                         5 * vec.x() + int(np.floor((width * WIDTH) / wdh)),
+                                         5 * vec.y() + int(np.floor(height * HEIGHT) / hght))
+                self.mappainter.setPen(QPen(Qt.blue, 4, Qt.SolidLine))
+                self.mappainter.drawPoint(5 * vec.x() + int(np.floor((width * WIDTH) / wdh)),
+                                          5 * vec.y() + int(np.floor(height * HEIGHT) / hght))
 
     def create_curve(self):
         random1 = [random.uniform(0, 2 * pi) for _ in range(len(self.W))]
@@ -223,38 +273,46 @@ class Worms:
                 self.curve[x - width] = self.curve[x] + height + 5
         self.curve[x] += radius
 
-        self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
-        print("p")
-        self.mappainter.setPen(QPen(Qt.red, 2, Qt.SolidLine))
-        self.mappainter.setBrush(Qt.red)
-        for i in range(len(self.curve)):
-            self.mappainter.drawPoint(i, self.curve[i])
-        self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
-        self.mappainter.setPen(Qt.white)
-        self.mappainter.setBrush(Qt.white)
+        # debug paint
+        if debug:
+            self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            self.mappainter.setPen(QPen(Qt.red, 3, Qt.SolidLine))
+            self.mappainter.setBrush(Qt.red)
+            for i in range(len(self.curve)):
+                self.mappainter.drawPoint(i, self.curve[i])
+            self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
+            self.mappainter.setPen(Qt.white)
+            self.mappainter.setBrush(Qt.white)
 
         if ((np.sqrt(np.power(self.old_player1Pos.x() - x, 2)
                      + np.power(self.old_player1Pos.y() - self.old_crater_yPos, 2)) < radius)):
-            self.player1Pos = QPoint(self.old_player1Pos.x(), -6 + self.curve[self.old_player1Pos.x()])
-            for i in range(-10, 10):
-                print(self.curve[self.player1Pos.x() + i], " ", self.curve[self.player1Pos.x()])
+            self.player1Pos = QPoint(self.old_player1Pos.x(), -12 + self.curve[self.old_player1Pos.x()])
             self.mappainter.drawEllipse(QPoint(self.old_player1Pos.x(), self.old_player1Pos.y()), 16, 16)
-            self.player1Health -= 0.7 * (radius * 1.8 - np.sqrt(np.power(self.old_player1Pos.x() - x, 2)
+            self.player1Health -= 0.8 * (radius * 1.8 - np.sqrt(np.power(self.old_player1Pos.x() - x, 2)
                                                                 + np.power(self.old_player1Pos.y() - self.curve[x], 2)))
-            """print(0.7 * (radius*1.8 - np.sqrt(np.power(self.old_player1Pos.x() - x,2)
-                                               + np.power(self.old_player1Pos.y() - self.curve[x], 2))), " " ,self.player1Health)"""
+
+            print("Player 1 took ", int(0.8 * (radius * 1.8 - np.sqrt(np.power(self.old_player1Pos.x() - x, 2)
+                                                                      + np.power(
+                self.old_player1Pos.y() - self.curve[x], 2)))), " damage!")
+            print("Player 1 has ", int(self.player1Health), " health!")
+            if self.player1Health <= 0:
+                print("game over! Player 2 won!")
+                sys.exit()
 
         if (np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
                     + np.power(self.old_player2Pos.y() - self.old_crater_yPos, 2)) < radius):
-            self.player2Pos = QPoint(self.old_player2Pos.x(), -6 + self.curve[self.old_player2Pos.x()])
-            for i in range(-10, 10):
-                print(self.curve[self.player2Pos.x() + i], " ", self.curve[self.player2Pos.x()])
+            self.player2Pos = QPoint(self.old_player2Pos.x(), -12 + self.curve[self.old_player2Pos.x()])
             self.mappainter.drawEllipse(QPoint(self.old_player2Pos.x(), self.old_player2Pos.y()), 16, 16)
-            self.player2Health -= 0.7 * (radius * 1.8 - np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
+            self.player2Health -= 0.8 * (radius * 1.8 - np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
                                                                 + np.power(self.old_player2Pos.y() - self.curve[x], 2)))
-            """print(0.7*(radius*1.8 -np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
-                          + np.power(self.old_player2Pos.y() - self.curve[x], 2))),
-            " ", self.player2Health)"""
+
+            print("Player 2 took ", int(radius * 1.8 - np.sqrt(np.power(self.old_player2Pos.x() - x, 2)
+                                                               + np.power(self.old_player2Pos.y() - self.curve[x], 2))),
+                  " damage!")
+            print("Player 2 has ", int(self.player2Health), " health!")
+            if self.player2Health <= 0:
+                print("game over! Player 1 won!")
+                sys.exit()
 
         self.charsImg = self.create_chars_image()
         self.draw_chars_img(self.charsImg)
@@ -395,9 +453,15 @@ class Worms:
         # pauses pull and bullet travel, but not pull and bullet simulation
         if self.frame_count == self.travel_rate:
             self.frame_count = -1
-            # doesnt work
-            # temp = self.windfield[np.floor(self.bulletPos.y()/9)][np.floor(self.bulletPos.x()/16)].vector
-            #print(temp.x())
+
+            temp = self.windfield[int(np.floor(hght * self.bulletPos.y() / HEIGHT))][
+                int(np.floor(wdh * self.bulletPos.x() / WIDTH))].vector
+            temp = QPoint(temp.x() / 3, temp.y() / 3)
+            self.rep += 1
+            if self.rep >= 5:
+                self.shot_vector += temp
+                self.rep = -1
+            #shot += temp
             self.bulletPos = shot
 
         self.frame_count += 1
@@ -419,6 +483,7 @@ class Worms:
                 if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 0)
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
+            self.set_windboxes()
             self.redraw_canons(0, 0)
 
         # if bullet hits terrain
@@ -429,7 +494,9 @@ class Worms:
                 if self.currentPlayer == 1 else self.player1Pos + QPoint(0, 00)
             self.currentPlayer = 2 if self.currentPlayer == 1 else 1
             self.display.setMouseTracking(True)
+            self.set_windboxes()
             self.redraw_canons(0, 0)
+
 
     def move_tank_left(self):
         self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
@@ -437,12 +504,12 @@ class Worms:
         self.mappainter.setBrush(Qt.white)
         if self.currentPlayer == 1:
             self.mappainter.drawEllipse(QPoint(self.player1Pos.x(), self.player1Pos.y()), 16, 16)
-            self.player1Pos = QPoint(self.player1Pos.x() - 4, self.curve[self.player1Pos.x() - 4])
+            self.player1Pos = QPoint(self.player1Pos.x() - 4, self.curve[self.player1Pos.x() - 4] -16)
             self.bulletPos = self.player1Pos
 
         else:
             self.mappainter.drawEllipse(QPoint(self.player2Pos.x(), self.player2Pos.y()), 16, 16)
-            self.player2Pos = QPoint(self.player2Pos.x() - 4, self.curve[self.player2Pos.x() - 4])
+            self.player2Pos = QPoint(self.player2Pos.x() - 4, self.curve[self.player2Pos.x() - 4] -16)
             self.bulletPos = self.player2Pos
         self.charsImg = self.create_chars_image()
         self.draw_chars_img(self.charsImg)
@@ -455,11 +522,11 @@ class Worms:
         self.mappainter.setBrush(Qt.white)
         if self.currentPlayer == 1:
             self.mappainter.drawEllipse(QPoint(self.player1Pos.x(), self.player1Pos.y()), 16, 16)
-            self.player1Pos = QPoint(self.player1Pos.x() + 4, self.curve[self.player1Pos.x() + 4])
+            self.player1Pos = QPoint(self.player1Pos.x() + 4, self.curve[self.player1Pos.x() + 4] -16)
             self.bulletPos = self.player1Pos
         else:
             self.mappainter.drawEllipse(QPoint(self.player2Pos.x(), self.player2Pos.y()), 16, 16)
-            self.player2Pos = QPoint(self.player2Pos.x() + 4, self.curve[self.player2Pos.x() + 4])
+            self.player2Pos = QPoint(self.player2Pos.x() + 4, self.curve[self.player2Pos.x() + 4] -16)
             self.bulletPos = self.player2Pos
         self.charsImg = self.create_chars_image()
         self.draw_chars_img(self.charsImg)
@@ -487,10 +554,8 @@ class Worms:
         if event.key() == Qt.Key_Return:
             self.close()
         if event.key() == Qt.Key_A:
-            print("1")
             self.move_tank_left()
         if event.key() == Qt.Key_D:
-            print("4")
             self.move_tank_right()
 
 
