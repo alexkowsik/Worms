@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 
 WIDTH = 1200
 HEIGHT = 600
+wdh = WIDTH//100
+hght = HEIGHT//100
 SCALING = 2*np.sqrt(WIDTH/1920)
 METER = 10*SCALING
 DEBUG = False
@@ -29,7 +31,7 @@ SCI_KIT = True
 
 class Worms:
     def __init__(self):
-        self.test = 0
+        self.running = True
 
         self.display = QLabel()
         self.display.setFixedSize(WIDTH, HEIGHT)
@@ -60,12 +62,16 @@ class Worms:
         self.entitylist += self.playerlist  # TODO: separate entities from players and draw players on mousemove only
 
         self.testbullet.set_pos(self.currentPlayer.get_cannon_pos())
+        self.windfield = self.get_wind_vector_field()
+        self.set_windboxes()
 
         self.skybox = QPixmap('resources/sky3').scaled(WIDTH, HEIGHT)
         self.worldImg = self.update_world_image()  # das Bild, das immer erhalten und bemalt wird
         # self.worldImgFrozen = self.worldImg.copy()  # s. unten
         self.mappainter = QPainter(self.worldImg)
         self.mappainter.setRenderHint(QPainter.Antialiasing)
+
+        self.endscreen = None
 
         self.timer = QTimer()
         self.timer.setInterval(16)      # 16ms for ~60Hz refresh rate
@@ -195,7 +201,12 @@ class Worms:
                     self.entitylist.remove(entity)
                     self.playerlist.remove(entity)
                     self.playercount -= 1
-                    print('player ', entity.get_ID(), ' died!')
+                    print('player ', entity.get_ID()+1, ' died!')
+                    if self.playercount <= 1:
+                        self.timer.stop()
+                        print('GAME OVER! Player ', self.currentPlayer.get_ID()+1, ' wins!')
+                        self.running = False
+                        # self.endscreen.draw()
                 else:
                     temp = not self.curve_model[int(entity.pos[1])+1][int(entity.pos[0])]
                     entity.is_flying = temp
@@ -204,8 +215,13 @@ class Worms:
             if isinstance(entity, Bullet) and not entity.is_flying:
                 self.display.setMouseTracking(True)
             if entity.is_flying:
+                if isinstance(entity, Bullet) and entity.pos[0] > 0 and entity.pos[0] < WIDTH and entity.pos[1] > 0 and entity.pos[1] < HEIGHT:
+                    temp = self.windfield[int(np.floor(hght * entity.pos[1] / HEIGHT))][
+                        int(np.floor(wdh * entity.pos[0] / WIDTH))].vector
+                    windoffset = tuple([temp.x(), temp.y()])
+                    entity.set_pos(tuple([entity.pos[0]+windoffset[0]*0.1, entity.pos[1]+windoffset[1]*0.1]))
+                    # print(windoffset)
                 entity.update()
-        self.test += 1
         # if DEBUG:
         #     print('update pos ['+str(self.test)+']')
 
@@ -213,6 +229,87 @@ class Worms:
         pos = self.testbullet.pos
         if not (pos[0] <= 0 or pos[0] >= WIDTH or pos[1] <= 0 or pos[1] >= HEIGHT) and self.curve_model[int(pos[1])][int(pos[0])]:
             self.explosion(pos)
+            self.damage(pos)
+
+    # TODO: nicht für alle Pixel, sondern nur für eine Korrdinate berechnen, die übergeben wird
+    def get_wind_vector_field(self):
+        class obj:
+            def __init__(self, width, height):
+                self.vector = QPoint(0, 0)
+                self.left_boundary = (WIDTH * width) / wdh
+                self.right_boundary = (WIDTH * (width + 1)) / wdh
+                self.upper_boundary = (HEIGHT * height) / hght
+                self.lower_boundary = (HEIGHT * (height + 1)) / hght
+
+        self.setup_windboxes = [[0 for x in range(wdh)] for y in range(hght)]
+        for width in range(wdh):
+            for height in range(hght):
+                self.setup_windboxes[height][width] = obj(width, height)
+                # if bullet.x > wind[1], < wind[2], bullet.y > wind[3] , bullet. < wind[4]
+        return self.setup_windboxes
+
+    def set_windboxes(self):
+        # add to entity vectors
+        # get general direction in vector form.  (-10t010,10to-10)
+
+        randx = random.uniform(-20, 20)
+        randy = random.uniform(-12, 12)
+        # self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        # self.mappainter.setPen(Qt.white)
+        # self.mappainter.setBrush(Qt.white)
+        # self.mappainter.drawEllipse(QPoint(HEIGHT - 62, 75), 20, 20)
+
+        # ---------------
+
+        # self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        # self.mappainter.setPen(QPen(Qt.red, 10, Qt.SolidLine))
+        # self.mappainter.setBrush(Qt.red)
+        #
+        # if randx > 0:
+        #     self.mappainter.drawLine(HEIGHT - 75, 75, HEIGHT - 50, 75)
+        #     self.mappainter.drawLine(HEIGHT - 50, 75, HEIGHT - 60, 60)
+        #     self.mappainter.drawLine(HEIGHT - 50, 75, HEIGHT - 60, 90)
+        #
+        # else:
+        #     self.mappainter.drawLine(HEIGHT - 75, 75, HEIGHT - 50, 75)
+        #     self.mappainter.drawLine(HEIGHT - 75, 75, HEIGHT - 60, 60)
+        #     self.mappainter.drawLine(HEIGHT - 75, 75, HEIGHT - 60, 90)
+        # debug
+        # if DEBUG:
+        #     if self.debug_counter != 0:
+        #         for width in range(wdh):
+        #             for height in range(hght):
+        #                 self.mappainter.setCompositionMode(QPainter.CompositionMode_Clear)
+        #                 self.mappainter.setPen(Qt.white)
+        #                 self.mappainter.setBrush(Qt.white)
+        #
+        #                 self.mappainter.drawLine(int(np.floor((width * WIDTH) / wdh)),
+        #                                          int(np.floor(height * HEIGHT) / hght),
+        #                                          5 * self.windfield[height][width].vector.x() + int(
+        #                                              np.floor((width * WIDTH) / wdh)),
+        #                                          5 * self.windfield[height][width].vector.y() + int(
+        #                                              np.floor(height * HEIGHT) / hght))
+        #                 self.mappainter.setPen(QPen(Qt.white, 3, Qt.SolidLine))
+        #                 self.mappainter.drawPoint(
+        #                     5 * self.windfield[height][width].vector.x() + int(np.floor((width * WIDTH) / wdh)),
+        #                     5 * self.windfield[height][width].vector.y() + int(np.floor(height * HEIGHT) / hght))
+        #     self.debug_counter = 1
+        for width in range(wdh):
+            for height in range(hght):
+                # get slightly varying direction from upper value
+                vec = QPoint(np.floor(randx + random.uniform(-10, 10)), np.floor(randy + random.uniform(-6, 6)))
+                self.windfield[height][width].vector = vec  # set direction
+            # if DEBUG:
+            #     self.mappainter.setPen(QPen(Qt.red, 3, Qt.SolidLine))
+            #     self.mappainter.setBrush(Qt.red)
+            #     self.mappainter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+            #     self.mappainter.drawLine(int(np.floor((width * WIDTH) / wdh)), int(np.floor(height * HEIGHT) / hght),
+            #                              5 * vec.x() + int(np.floor((width * WIDTH) / wdh)),
+            #                              5 * vec.y() + int(np.floor(height * HEIGHT) / hght))
+            #     self.mappainter.setPen(QPen(Qt.blue, 4, Qt.SolidLine))
+            #     self.mappainter.drawPoint(5 * vec.x() + int(np.floor((width * WIDTH) / wdh)),
+            #                               5 * vec.y() + int(np.floor(height * HEIGHT) / hght))
+
 
     def explosion(self, pos):
         # TODO: draw explosion sprite here
@@ -250,6 +347,16 @@ class Worms:
             print(x_por, x_range, y_por, y_range)
         return [int(x_start), int(y_start), int(x_range), int(y_range)]
 
+    def damage(self, pos):
+        damage_radius = int(30*SCALING)
+        damage = 0
+        for player in self.playerlist:
+            distance = np.sqrt(np.power(player.pos[0] - pos[0], 2) + np.power(player.pos[1] - pos[1], 2))
+            if distance < damage_radius:
+                damage = (1-(distance/damage_radius))*50
+                player.health -= damage
+            print('player ', player.get_ID()+1, ' health: ', player.health)
+
     def shoot(self):
         self.testbullet.set_flight_angle(self.currentPlayer.aim_angle)
         self.testbullet.set_speed(6*METER)   #TODO: figure out nice speed, possibly power meter?
@@ -264,6 +371,7 @@ class Worms:
         if DEBUG:
             angle = self.get_angle(self.currentPlayer.pos, self.mousePos)
             print(angle)
+        self.set_windboxes()
         self.shoot()
         self.currentPlayer = self.playerlist.next()
         # self.display.setMouseTracking(True)
@@ -282,6 +390,10 @@ class Worms:
             # self.blur.update()
             self.timer.stop()
             self.display.setMouseTracking(False)
+        if event.key() == Qt.Key_A and self.running:
+            self.currentPlayer.set_player_pos(tuple([self.currentPlayer.pos[0]-1, self.curve[self.currentPlayer.pos[0]-1]]))
+        if event.key() == Qt.Key_D and self.running:
+            self.currentPlayer.set_player_pos(tuple([self.currentPlayer.pos[0]+1, self.curve[self.currentPlayer.pos[0]+1]]))
 
 
 class Player:
@@ -399,6 +511,7 @@ class Bullet:
         self.speed = 0
         self.flight_angle = 270
         self.is_flying = False
+        self.wind = 0
 
     def get_POR(self):      # returns pos of the back of the bullet for easy positioning
         projectile_width = 7.5/2*SCALING
@@ -422,33 +535,35 @@ class Bullet:
         layer = np.zeros([self.size, self.size, 4])
         layer[:, :, 3] = 0  # macht Ebene transparent
         img = QImage(layer, self.size, self.size, QImage.Format_RGBA8888)
-        painter = QPainter(img)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        if self.is_flying:
+            painter = QPainter(img)
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setCompositionMode(QPainter.CompositionMode_SourceOver)
 
-        angle = int(self.flight_angle)
+            angle = int(self.flight_angle)
 
-        if DEBUG:
-            painter.setPen(Qt.red)
-            painter.setBrush(QColor('#00000000'))
-            painter.drawRect(0, 0, self.size, self.size)
-            painter.drawEllipse(self.size//2-2, self.size//2-2, 4, 4)
+            if DEBUG:
+                painter.setPen(Qt.red)
+                painter.setBrush(QColor('#00000000'))
+                painter.drawRect(0, 0, self.size, self.size)
+                painter.drawEllipse(self.size//2-2, self.size//2-2, 4, 4)
 
-        painter.translate(self.size // 2, self.size // 2)
-        painter.rotate(angle)
-        spirte = QPixmap('resources/bullet.png').scaled(3*SCALING, 7.5*SCALING, Qt.KeepAspectRatio)
-        painter.drawPixmap(-3*SCALING//2, -7.5*SCALING//2, spirte)
+            painter.translate(self.size // 2, self.size // 2)
+            painter.rotate(angle)
+            spirte = QPixmap('resources/bullet.png').scaled(3*SCALING, 7.5*SCALING, Qt.KeepAspectRatio)
+            painter.drawPixmap(-3*SCALING//2, -7.5*SCALING//2, spirte)
 
-        painter.end()
+            painter.end()
 
         return img
 
     def update(self):   # calculates next pos and flight angle in 16ms intervall
-        if self.pos[1] > HEIGHT or self.pos[0] < -250 or self.pos[0] > WIDTH+250:
+        if self.pos[1] > HEIGHT or self.pos[0] < 0 or self.pos[0] > WIDTH:
             print('peng', self.pos[0], self.pos[1])
             self.set_speed(0)
             self.is_flying = False
             self.set_flight_angle(0)
+            self.set_pos(tuple([0, 0]))
         else:
             tick = 8
             x_move = self.speed*-np.sin(self.flight_angle*pi/180)*1/tick
